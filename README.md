@@ -1,6 +1,9 @@
 # xblick-yolox
 
 [![xblick core](https://img.shields.io/pypi/v/xblick?label=xblick%20core&color=blue)](https://github.com/xblick/xblick)
+[![tests](https://github.com/xblick/xblick-yolox/actions/workflows/tests.yml/badge.svg)](https://github.com/xblick/xblick-yolox/actions/workflows/tests.yml)
+[![licence](https://img.shields.io/badge/licence-Apache--2.0-blue)](LICENSE)
+[![device](https://img.shields.io/badge/runs%20on-CPU%20or%20NVIDIA%20GPU-brightgreen)](README.md)
 
 This [Durchblick](https://github.com/xblick/xblick) node finds the objects of COCO's 80 classes in a camera's colour
 stream. It runs on a CPU without a GPU: YOLOX-tiny needs 11 ms per 640 x 480 frame on 4 CPU threads of our test PC,
