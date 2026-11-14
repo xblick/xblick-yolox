@@ -1,0 +1,16 @@
+xblick-yolox
+Copyright 2026 David Schneider
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Parts of others:
+
+- YOLOX by Megvii (github.com/Megvii-BaseDetection/YOLOX), Copyright (c) 2021-2022 Megvii Inc., Apache License 2.0.
+  The node downloads the ONNX model files of its release 0.1.1rc0 into weights/; they are not part of this
+  repository. The pre- and post-processing in src/xblick_yolox/model.py follow the input and output format of these
+  files and of YOLOX's ONNX export; they are written anew in numpy, no code of YOLOX is copied. The 80 class names are
+  those of the COCO dataset.
+- ONNX Runtime by Microsoft, MIT License. It is a Python dependency.
+- tests/data/office.png is a frame of the sequence freiburg3_long_office_household of the TUM RGB-D dataset of the
+  Technical University of Munich, under the Creative Commons Attribution 4.0 International licence (CC BY 4.0,
+  https://creativecommons.org/licenses/by/4.0/).

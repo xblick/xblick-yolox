@@ -1,0 +1,36 @@
+# The tests that need no model weights, and the check for internal references.
+# Tests that need weights/ skip themselves here.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  references:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: tools/check_references.sh
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.x"
+      - run: uv sync --frozen
+      - run: .venv/bin/ruff check src tests tools
+
+  tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.x"
+      - name: venv as uv.lock states
+        run: uv sync --frozen
+      - name: tests without model weights
+        run: .venv/bin/python -m pytest -q

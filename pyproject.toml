@@ -1,0 +1,32 @@
+[project]
+name = "xblick-yolox"
+version = "0.1.0"
+description = "YOLOX (Megvii's object detector, COCO's 80 classes) as a Durchblick node, on the CPU with ONNX Runtime"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "David Schneider" }]
+requires-python = ">=3.10,<3.14"  # the core's wheels: CPython 3.10 to 3.13
+dependencies = [
+    "xblick>=0.5.1,<0.6",  # the Durchblick core: node, history, parameters, vision_msgs/Detection2DArray
+    "onnxruntime>=1.20",  # the model, on the CPU
+    "numpy>=1.26",
+    "pillow>=10.1",  # the overlay's drawing (also a dependency of the core)
+]
+
+[project.scripts]
+xblick-yolox = "xblick_yolox.node:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.12"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
