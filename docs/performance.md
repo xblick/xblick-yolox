@@ -37,6 +37,13 @@ The node reports "ms a frame" for its whole work on a frame, including the colou
 All three models kept up with the camera. The node needs more time per frame than the benchmark, which runs frames
 back to back. We have not found out why. One possible cause is the CPU's clock, which drops between frames.
 
+## On a GPU
+
+With `onnxruntime-gpu[cuda,cudnn]` 1.32.0 in place of `onnxruntime`, on one RTX PRO 6000 (driver 580, CUDA 13.0), the
+whole detection took 3.4 ms (nano), 3.9 ms (tiny) and 3.6 ms (s) per frame, median of 100 frames, 4 CPU threads.
+The node kept up with a replay at
+10 frames per second (9 ms a frame in the node, tiny) and the test camera at 15 frames per second.
+
 ## Settings
 
 ONNX Runtime's threads sleep between frames (`session.intra_op.allow_spinning` is `0`), so the node uses no CPU

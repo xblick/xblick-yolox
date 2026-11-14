@@ -14,7 +14,8 @@ tools/setup.sh                                       # uv sync --frozen, then xb
 .venv/bin/xblick-yolox --download-only --model s     # one model into weights/
 .venv/bin/ruff check src tests tools                 # lint; 120 columns
 taskset -c 0-3 .venv/bin/python tools/bench.py       # ms per frame of each model in weights/, ~1 min
-.venv/bin/xblick-yolox --camera test/camera --overlay   # needs zenohd on the PC and xblick test-camera
+.venv/bin/xblick router & .venv/bin/xblick test-camera &   # router and camera, as the README's Run
+.venv/bin/xblick-yolox --camera test/camera --overlay
 ```
 
 ## Rules
@@ -39,7 +40,7 @@ taskset -c 0-3 .venv/bin/python tools/bench.py       # ms per frame of each mode
 | Fixed input size | Each ONNX file has a fixed input (416 or 640). | `INPUT_SIZE`; `Detector` checks the shapes. |
 | `classes` parameter | An unknown class is refused by `check_classes` (live) and by `parser.error` (start). | |
 | Node tests | The stand-in runs the node through `python -c` with `node.load_detector` replaced. | `tests/standin.py` |
-| Zenoh sessions (core) | A session with only `--connect` does not listen. | Tests listen in-process, the node connects. |
+| SIGINT in scripts | A background job of a script has SIGINT ignored; the core restores it for `xblick` commands, not in `node.start`. | Stop the node by PID with SIGTERM. |
 
 ## Layout
 

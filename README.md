@@ -33,8 +33,8 @@ exists. Without `--overlay` the stream does not exist at all.
 | What | Requirement |
 | --- | --- |
 | CPU | an x86-64 PC with Linux. We measured on 4 cores of an AMD EPYC 9335. |
-| GPU | none. A GPU is optional and untested, see "Limits". |
-| Durchblick | 0.5.1 or newer, below 0.6 (Python package `xblick`) |
+| GPU | none. An NVIDIA GPU is optional, see "On a GPU". |
+| Durchblick | 0.5.3 or newer, below 0.6 (Python package `xblick`) |
 | Python | 3.10 to 3.13, which `tools/setup.sh` puts into `.venv` |
 | Tools for the setup | uv |
 | Disk | 4 MB (nano), 20 MB (tiny) or 36 MB (s) per model |
@@ -65,20 +65,19 @@ The node is not on PyPI yet. We plan to publish it there, so that `pip install x
 
 ## Run
 
-Start a Zenoh router (`zenohd`) on the PC, a camera, and the node. `xblick cam` needs the core's `cam` extra.
+Start a router, a camera, the node and a viewer, each in its own terminal. The camera name is an example.
 
 ```bash
-xblick cam /dev/video0                                   # publishes cam/video0/color
-.venv/bin/xblick-yolox --camera cam/video0 --overlay
-# on a PC with an NVIDIA GPU: add --device cuda (needs onnxruntime-gpu in place of onnxruntime, untested)
+.venv/bin/xblick router                                  # the Zenoh router of this PC
+.venv/bin/xblick test-camera                             # a test pattern on test/camera/color
+.venv/bin/xblick-yolox --camera test/camera --overlay
+# on a PC with an NVIDIA GPU: add --device cuda (see "On a GPU")
+.venv/bin/xblick view test/camera/color test/camera/yolox/overlay
 ```
 
-Without a camera, `xblick test-camera` publishes `test/camera/color`. Any image viewer shows the overlay, for
-example Durchblick's Rerun viewer, which also draws the detections over the camera's images:
-
-```bash
-xblick rerun --spawn
-```
+`xblick view` opens VLC, or offers the browser view at `http://127.0.0.1:8090/`. The test pattern has no objects
+in it. A webcam has: `xblick cam /dev/video0` publishes `cam/video0/color`, and `--camera cam/video0` takes it.
+`xblick cam` needs the core's `cam` extra (`xblick[cam]`), which `.venv` does not have.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
@@ -89,7 +88,7 @@ xblick rerun --spawn
 | `--classes NAME ...` | all 80 | only these COCO classes, also comma-separated: `--classes person,cup`. Live. |
 | `--overlay` | off | also publish `<camera>/yolox/overlay` |
 | `--threads N` | 4 | the CPU threads of ONNX Runtime for one frame |
-| `--device DEVICE` | `cpu` | `cpu`, `cuda` (GPU 0) or `cuda:N`. A GPU that ONNX Runtime cannot use is an error. |
+| `--device DEVICE` | `cpu` | `cpu`, `cuda` (GPU 0) or `cuda:N`. A GPU that ONNX Runtime cannot use ends the start with one line. |
 | `--max-hz HZ` | every frame | the most frames per second. The node always takes the newest frame. |
 | `--local` | `auto` | how frames of a camera on this host reach the node: `auto` or `shm` |
 | `--color TOPIC` | `<camera>/color` | the colour stream |
@@ -102,6 +101,21 @@ Every default is a fixed value. The node never chooses a model, a device or a th
 Every option is also a parameter of the node `<camera>/yolox`, which Durchblick's terminal interface (`xblick`, tab
 Parameters) and `xblick param` show. `score`, `nms` and `classes` change while the node runs. The other options apply
 at the next start.
+
+## On a GPU
+
+`uv.lock` installs ONNX Runtime for the CPU. For a GPU, replace it in `.venv` by `onnxruntime-gpu` with NVIDIA's CUDA
+13 and cuDNN 9 libraries from PyPI (2.5 GB):
+
+```bash
+uv pip uninstall --python .venv/bin/python onnxruntime
+uv pip install --python .venv/bin/python "onnxruntime-gpu[cuda,cudnn]==1.32.0"
+.venv/bin/xblick-yolox --camera test/camera --overlay --device cuda
+```
+
+The node then runs YOLOX-tiny in 3.9 ms per frame on an RTX PRO 6000 (driver 580, CUDA 13.0). `tools/setup.sh`
+installs the CPU package again, because it restores `.venv` as `uv.lock` states. A GPU that ONNX Runtime cannot use
+ends the start with one line. The node never falls back to the CPU.
 
 ## Which model
 
@@ -121,9 +135,10 @@ end.
 
 ## Limits
 
-- We tested the node on a test camera and on a published image. We have not tested it with a real webcam.
-- We have not tested `--device cuda`. The lock installs the CPU package of ONNX Runtime, which has no CUDA
-  provider. `--device cuda` then ends the node with that reason.
+- We tested the node on a test camera and on a replayed image, as separate processes. We have not tested it with a
+  real webcam.
+- In a shell script, Ctrl-C (SIGINT) does not end the node when the script started it in the background. SIGTERM
+  does. The core restores SIGINT for its own commands, but not for nodes.
 - YOLOX knows only COCO's 80 classes. It does not track, so a detection has no id.
 - The node runs on Linux on x86-64, because the core's wheels exist only there.
 
