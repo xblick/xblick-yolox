@@ -152,7 +152,8 @@ def test_setup_with_a_gpu_on_a_python_without_a_wheel_says_so_once(home, smi, uv
     path, log = uv
     assert runtime.setup(str(path), "xblick-x", "auto") == 0
     lines = capsys.readouterr().out.splitlines()
-    assert len(lines) == 1 and lines[0].startswith("xblick-x: found 1 NVIDIA GPU(s)") and lines[0].count("xblick-x:") == 1
+    assert len(lines) == 1 and lines[0].startswith("xblick-x: found 1 NVIDIA GPU(s)")
+    assert lines[0].count("xblick-x:") == 1
     assert "has no wheel for Python" in lines[0] and not log.exists()
 
 
