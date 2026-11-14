@@ -1,5 +1,5 @@
 """Pre- and post-processing on synthetic data (no model), and the real models on a frame of an office (they skip
-without weights/)."""
+without the models in the node's cache directory)."""
 
 from pathlib import Path
 

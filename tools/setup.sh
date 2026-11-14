@@ -2,7 +2,7 @@
 # Sets xblick-yolox up from scratch or updates it:
 #
 # * the venv exactly as uv.lock fixes it (.venv)
-# * the model in weights/, through xblick-yolox --download-only (weights.py's MODELS; only if missing): YOLOX-tiny
+# * the model in ~/.cache/xblick/yolox (the node's cache directory), through xblick-yolox --download-only (weights.py's MODELS; only if missing): YOLOX-tiny
 #   by default (20 MB) from YOLOX's GitHub release 0.1.1rc0. The node downloads it at its start too.
 #
 #     tools/setup.sh [--model nano|tiny|s]
@@ -15,4 +15,4 @@ command -v "$UV" > /dev/null || { echo "no uv: $UV" >&2; exit 1; }
 
 "$UV" sync --frozen
 .venv/bin/xblick-yolox --download-only "$@"
-echo "xblick-yolox: set up; models in weights/"
+echo "xblick-yolox: set up"

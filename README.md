@@ -55,13 +55,27 @@ tools/setup.sh
 ```
 
 The script creates `.venv` exactly as `uv.lock` states, with ONNX Runtime for the CPU and Durchblick from PyPI. Then
-it runs `xblick-yolox --download-only`, which downloads YOLOX-tiny into `weights/` and checks its size and SHA-256.
+it runs `xblick-yolox --download-only`, which downloads YOLOX-tiny into `~/.cache/xblick/yolox/` and checks its size and SHA-256.
 `tools/setup.sh --model s` downloads another model. The script downloads only what is missing.
 
 The node also downloads a missing model at its start. A machine that must never start a download on its own starts
 the node with `--no-download`. The node then ends at once when the file is missing, and it names the file.
 
 The node is not on PyPI yet. We plan to publish it there, so that `pip install xblick-yolox` installs it.
+
+### Where the weights are
+
+The node keeps its weights in its cache directory, `~/.cache/xblick/yolox/`. `XBLICK_HOME=/dir` moves it to `/dir/cache/yolox/`,
+and `XDG_CACHE_HOME` moves it as well. `--weights-dir DIR` names another directory. The place is the same for a
+checkout and for a pip install. [Where files are](https://github.com/xblick/xblick/blob/main/docs/reference/files.md) lists the places, and it shows how to copy the cache to a
+PC without internet.
+
+Up to version 0.1.1, the weights were in the checkout's `weights/`. The node does not read them there. At its start it
+prints the command that moves them. In the checkout it is:
+
+```bash
+mkdir -p ~/.cache/xblick && mv weights ~/.cache/xblick/yolox
+```
 
 ## Run
 
@@ -77,7 +91,8 @@ Start a router, a camera, the node and a viewer, each in its own terminal. The c
 
 `xblick view` opens VLC, or offers the browser view at `http://127.0.0.1:8090/`. The test pattern has no objects
 in it. A webcam has: `xblick cam /dev/video0` publishes `cam/video0/color`, and `--camera cam/video0` takes it.
-`xblick cam` needs the core's `cam` extra (`xblick[cam]`), which `.venv` does not have.
+`xblick cam` needs the core's `cam` extra, which `.venv` does not have and `tools/setup.sh` does not install.
+Install it separately for `xblick cam`: `pip install "xblick[cam]"`.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
@@ -95,6 +110,7 @@ in it. A webcam has: `xblick cam /dev/video0` publishes `cam/video0/color`, and 
 | `--node NAME` | `yolox` | the node's part of the topics |
 | `--no-download` | off | end at once when the model file is missing |
 | `--download-only` | off | download the missing model, check it and end. `--camera` may be left out. |
+| `--weights-dir DIR` | the cache directory | where the weights are and go, in place of `~/.cache/xblick/yolox/` |
 
 Every default is a fixed value. The node never chooses a model, a device or a thread count from the machine.
 

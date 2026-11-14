@@ -1,5 +1,5 @@
 # The tests that need no model weights, and the check for internal references.
-# Tests that need weights/ skip themselves here.
+# Tests that need the models in the node's cache directory skip themselves here.
 name: tests
 
 on:

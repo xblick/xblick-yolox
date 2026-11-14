@@ -1,5 +1,6 @@
 """The node: its conversions and options, and the node itself as its own process on a published colour stream over
-real Zenoh sessions, with a stand-in model (always) and with the real tiny model (when weights/ has it)."""
+real Zenoh sessions, with a stand-in model (always) and with the real tiny model (when the node's cache directory
+has it)."""
 
 import os
 import shutil
@@ -173,7 +174,7 @@ def test_node_restricted_to_a_class_publishes_only_that_class():
     check_detections(detections, lambda names: names == ["cup"])
 
 
-@pytest.mark.skipif(not weights.path_of("tiny").is_file(), reason="no weights/yolox_tiny.onnx")
+@pytest.mark.skipif(not weights.path_of("tiny").is_file(), reason="no yolox_tiny.onnx in the node's cache directory")
 def test_node_with_the_real_tiny_model_finds_chairs_and_draws_them():
     detections, overlays, _, _ = run_node(["--overlay", "--no-download"], stand_in=False)
     check_detections(detections, lambda names: names.count("chair") >= 2 and "bottle" in names)

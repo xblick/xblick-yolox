@@ -18,8 +18,9 @@ stamped as the frame and in its camera frame:
 Frames per second, ms a frame, objects per frame and the time from frame to results go to ``<camera>/diagnostics``
 (status ``yolox``) once a second.
 
-Weights (weights.py): a missing model file is downloaded at the start, before the model loads; --no-download ends
-the node instead. ``xblick-yolox --download-only [--model tiny]`` only downloads and checks it (no camera, no Zenoh).
+Weights (weights.py; in the node's cache directory ~/.cache/xblick/yolox, or --weights-dir): a missing model file is
+downloaded at the start, before the model loads; --no-download ends the node instead. ``xblick-yolox --download-only
+[--model tiny]`` only downloads and checks it (no camera, no Zenoh).
 """
 
 from __future__ import annotations
@@ -152,7 +153,7 @@ def main(argv=None) -> int:
     parser = make_parser()
     args = store.parse_args(parser, argv)  # --download-only: --camera not required
     if args.download_only:
-        return weights.STORE.download_only(weights.needed(args.model))
+        return weights.store_for(parser, args).download_only(weights.needed(args.model), options=weights.options(args))
     camera = topics.check_name(args.camera)
     # the options as parameters (the terminal interface shows them): read-only, but those LIVE, which the loop reads
     session = open_from_args(args)
@@ -175,16 +176,17 @@ def main(argv=None) -> int:
         session.close()
         parser.error(problem)
     color_base = args.color or f"{camera}/color"
+    cache = weights.store_for(parser, args)  # --weights-dir, also given as a parameter
 
     node.start("xblick-yolox", max_hz=args.max_hz, local=args.local)
     try:
-        weights.STORE.ensure(weights.needed(args.model), download=not args.no_download)
+        cache.ensure(weights.needed(args.model), download=not args.no_download, options=weights.options(args))
     except store.WeightsError as error:
         params.close()
         session.close()
-        return weights.STORE.fail(error)
+        return cache.fail(error)
     try:
-        detector = load_detector(weights.path_of(args.model), INPUT_SIZE[args.model], args.threads, args.device)
+        detector = load_detector(weights.path_of(args.model, cache), INPUT_SIZE[args.model], args.threads, args.device)
     except RuntimeError as error:  # a --device that ONNX Runtime cannot use: one line, no CPU instead
         print(f"xblick-yolox: {error}", file=sys.stderr, flush=True)
         params.close()

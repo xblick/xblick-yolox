@@ -8,9 +8,13 @@ import http.server
 import os
 import signal
 import socket
+import subprocess
+import sys
 import threading
+from pathlib import Path
 
 import pytest
+from xblick import paths
 from xblick import weights as store
 from xblick.session import open_session
 
@@ -45,8 +49,10 @@ def server():
 
 @pytest.fixture
 def home(tmp_path, monkeypatch, server):
-    """The node's STORE in tmp_path; every model a stand-in on the local server."""
+    """The node's STORE in tmp_path (no former place), XBLICK_HOME too (nothing reaches this PC's cache); every model a
+    stand-in on the local server."""
     root = tmp_path / "weights"
+    monkeypatch.setenv("XBLICK_HOME", str(tmp_path / "xblick-home"))
     monkeypatch.setattr(weights, "STORE", store.Store(weights.PROG, root, weights.TERMS, (), repo=tmp_path))
     url, _ = server
     for name in weights.MODELS:
@@ -64,8 +70,55 @@ def test_the_files_are_those_of_yolox_release_0_1_1rc0():
                  "427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7"),
         "s": ("yolox_s.onnx", f"{release}/yolox_s.onnx", 35_858_002,
               "c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063")}
-    assert weights.needed("nano")[0].path == weights.WEIGHTS / "yolox_nano.onnx"
-    assert weights.STORE.root == weights.WEIGHTS
+    assert weights.needed("nano")[0].path == Path("yolox_nano.onnx")  # below the store's root
+
+
+def test_the_store_is_the_cache_directory_with_the_checkout_as_former_place(tmp_path):
+    assert weights.STORE.root == paths.cache_dir("yolox") and weights.STORE.node == weights.NODE == "yolox"
+    assert weights.STORE.former == (weights.REPO / "weights",) and weights.FORMER == weights.REPO / "weights"
+    assert weights.path_of("s") == paths.cache_dir("yolox") / "yolox_s.onnx"
+    env = {**os.environ, "XBLICK_HOME": str(tmp_path)}  # moves it, and asking creates nothing
+    root = subprocess.run([sys.executable, "-c", "from xblick_yolox.weights import STORE; print(STORE.root)"],
+                          env=env, capture_output=True, text=True, check=True).stdout.strip()
+    assert root == str(tmp_path / "cache" / "yolox") and not list(tmp_path.iterdir())
+
+
+
+def test_weights_dir_is_a_read_only_parameter_and_download_only_none():
+    from xblick.parameters import Parameters
+
+    parser = node.make_parser()
+    args = store.parse_args(parser, ["--camera", "test/camera", "--weights-dir", "/w"])
+    params = Parameters(None, "yolox", "test/camera")
+    params.configure(args)
+    params.declare_options(parser, args, live=node.LIVE, leave_out=("camera", "node", "download_only"))
+    assert params.descriptor("weights_dir").read_only and params["weights_dir"] == "/w"
+    assert "download_only" not in params.names()
+
+def test_weights_dir_is_where_the_model_goes(home, tmp_path, capsys):
+    there = tmp_path / "elsewhere"
+    assert node.main(["--download-only", "--model", "nano", "--weights-dir", str(there)]) == 0
+    assert (there / "yolox_nano.onnx").read_bytes() == DATA and not home.exists()
+    with pytest.raises(SystemExit) as exit_:
+        node.main(["--download-only", "--weights-dir", "${XBLICK_NO_SUCH_VARIABLE}/w"])
+    assert exit_.value.code == 2 and "--weights-dir" in capsys.readouterr().err
+
+
+def test_a_model_at_the_former_place_is_named_not_used_and_its_command_moves_it(home, tmp_path, monkeypatch,
+                                                                                 server, capsys):
+    _, gets = server
+    old = tmp_path / "checkout" / "weights"
+    old.mkdir(parents=True)
+    (old / "yolox_tiny.onnx").write_bytes(DATA)
+    monkeypatch.setattr(weights, "STORE", store.Store(weights.PROG, home, weights.TERMS, (), former=[old]))
+    with pytest.raises(store.WeightsError, match="xblick-yolox --download-only --model tiny"):
+        weights.STORE.ensure(weights.needed("tiny"), download=False, options=["--model", "tiny"])
+    lines = capsys.readouterr().out.splitlines()
+    assert "still at the node's former place. They are not used from there." in lines[0]
+    assert lines[1].strip() == f"mkdir -p {home.parent} && mv {old} {home}"
+    subprocess.run(["bash", "-c", lines[1]], check=True)  # the command as printed
+    assert node.main(["--download-only"]) == 0 and gets == [] and not old.exists()
+    assert "nothing to download" in capsys.readouterr().out
 
 
 def test_download_only_downloads_the_model_option_and_then_has_nothing_to_do(home, server, capsys):
@@ -123,7 +176,7 @@ def test_no_download_with_the_model_missing_ends_with_one_line(home, server, sta
     _, gets = server
     assert node.main([*start, "--no-download"]) == 1
     err = capsys.readouterr().err.strip().splitlines()
-    assert len(err) == 1 and "yolox_tiny.onnx" in err[0] and "--download-only" in err[0], err
+    assert len(err) == 1 and "yolox_tiny.onnx" in err[0] and "xblick-yolox --download-only --model tiny" in err[0], err
     assert gets == [] and not (home / "yolox_tiny.onnx").exists()
 
 

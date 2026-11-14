@@ -47,7 +47,7 @@ detection is drawn last, so it lies on top. The diagnostics count the overlays p
 
 | File | What |
 | --- | --- |
-| `tests/test_model.py` | letterbox, grids, decoding and suppression on synthetic outputs, the real models on `office.png` (skip without `weights/`) |
+| `tests/test_model.py` | letterbox, grids, decoding and suppression on synthetic outputs, the real models on `office.png` (skip without the models in the cache directory) |
 | `tests/test_overlay.py` | the drawing: boxes and labels where the detections are |
 | `tests/test_node.py` | conversions and options, the node as its own process with a stand-in model and with the real tiny model |
 | `tests/test_weights.py` | the model list, `--download-only`, `--no-download` and a start without the model, against a local HTTP server |

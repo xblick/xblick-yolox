@@ -1,6 +1,6 @@
 [project]
 name = "xblick-yolox"
-version = "0.1.1"
+version = "0.1.2"
 description = "YOLOX (Megvii's object detector, COCO's 80 classes) as a Durchblick node, on the CPU with ONNX Runtime"
 readme = "README.md"
 license = "Apache-2.0"
@@ -8,7 +8,7 @@ license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "David Schneider" }]
 requires-python = ">=3.10,<3.14"  # the core's wheels: CPython 3.10 to 3.13
 dependencies = [
-    "xblick>=0.5.3,<0.6",  # the Durchblick core: node, history, parameters, vision_msgs/Detection2DArray
+    "xblick>=0.5.5,<0.6",  # the Durchblick core: node, history, parameters, vision_msgs/Detection2DArray
     "onnxruntime>=1.20",  # the model, on the CPU
     "numpy>=1.26",
     "pillow>=10.1",  # the overlay's drawing (also a dependency of the core)
