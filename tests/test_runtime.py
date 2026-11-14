@@ -19,6 +19,12 @@ runtime = importlib.import_module(f"{PACKAGE}.runtime")
 TAG = f"cp{sys.version_info[0]}{sys.version_info[1]}"
 
 
+@pytest.fixture(autouse=True)
+def any_python(monkeypatch):
+    """Every Python counts as one with a wheel (the tests run on 3.10 too); the test of the check sets its own."""
+    monkeypatch.setattr(runtime, "PYTHONS", ((3, 0), (3, 99)))
+
+
 @pytest.fixture
 def home(tmp_path, monkeypatch):
     """XBLICK_HOME in tmp_path: the shared runtime goes to <home>/cache/onnxruntime."""
@@ -85,6 +91,8 @@ def smi(tmp_path, monkeypatch):
     ("exit 0", "none", "lists none"),
     ("echo 'NVIDIA GeForce RTX 3090, 580.95.05'", "gpu", "found 1 NVIDIA GPU(s): NVIDIA GeForce RTX 3090, driver 580"),
     ("echo 'NVIDIA GeForce RTX 3090, 535.230.02'", "old", "needs driver 580 or newer"),
+    ("printf 'NVIDIA A, 580.1\\nNVIDIA A, 580.1\\nNVIDIA B, 581.2\\n'", "gpu",
+     "found 3 NVIDIA GPU(s): 2 x NVIDIA A, NVIDIA B"),
 ])
 def test_the_rule_for_a_gpu(smi, body, state, text):
     if body is not None:

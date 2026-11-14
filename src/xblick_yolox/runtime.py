@@ -282,7 +282,10 @@ def detect() -> tuple[str, str]:
     gpus = [[part.strip() for part in line.split(",")] for line in done.stdout.splitlines() if line.strip()]
     if not gpus:
         return "none", "no NVIDIA GPU found (nvidia-smi lists none)"
-    names = ", ".join(g[0] for g in gpus)
+    counts = {}
+    for g in gpus:
+        counts[g[0]] = counts.get(g[0], 0) + 1
+    names = ", ".join(name if n == 1 else f"{n} x {name}" for name, n in counts.items())
     try:
         driver = min(int(g[1].split(".")[0]) for g in gpus)
     except (IndexError, ValueError):
