@@ -316,7 +316,7 @@ def setup(uv: str, prog: str, mode: str, former=(), out=None) -> int:
         print(f"{prog}: {found}, so it was not installed; the node computes on the CPU", file=out, flush=True)
         return 0
     try:
-        check_python(f"{prog}: {found}, but the GPU runtime")
+        check_python(f"{found}, but the GPU runtime")
     except RuntimeError as error:
         print(f"{prog}: {error}; the node computes on the CPU until then", file=out, flush=True)
         return 0

@@ -146,6 +146,16 @@ def test_setup_with_a_gpu_announces_installs_once_and_then_reuses(home, smi, uv,
     assert "in place already" in capsys.readouterr().out and len(log.read_text().splitlines()) == 2
 
 
+def test_setup_with_a_gpu_on_a_python_without_a_wheel_says_so_once(home, smi, uv, monkeypatch, capsys):
+    smi("echo 'NVIDIA RTX PRO 6000, 580.105.08'")
+    monkeypatch.setattr(runtime, "PYTHONS", ((3, 99), (3, 99)))
+    path, log = uv
+    assert runtime.setup(str(path), "xblick-x", "auto") == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 1 and lines[0].startswith("xblick-x: found 1 NVIDIA GPU(s)") and lines[0].count("xblick-x:") == 1
+    assert "has no wheel for Python" in lines[0] and not log.exists()
+
+
 def test_gpu_installs_without_a_gpu_and_no_gpu_never(home, smi, uv, capsys):
     path, log = uv
     assert runtime.setup(str(path), "xblick-x", "off") == 0
