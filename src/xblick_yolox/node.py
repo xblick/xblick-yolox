@@ -32,6 +32,8 @@ import time
 import numpy as np
 import xblick as db
 from xblick import node, topics
+from xblick import overlay as drawn
+from xblick import weights as store
 from xblick.camera import check_local
 from xblick.history import FrameHistory
 from xblick.session import add_arguments, open_from_args
@@ -116,9 +118,7 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("--classes", nargs="*", default=[],
                         help="only these COCO classes, each also comma-separated, e.g. person,cup or person "
                              "\"cell phone\" (default: all 80)")
-    parser.add_argument("--overlay", action="store_true",
-                        help="also publish <camera>/<node>/overlay: the colour image with the detections drawn on it "
-                             "(default: off, the stream does not exist)")
+    drawn.add_argument(parser)  # --overlay: <camera>/<node>/overlay, off by default
     parser.add_argument("--threads", type=int, default=4,
                         help="CPU threads for the model (ONNX Runtime's intra-op threads) (default: 4)")
     parser.add_argument("--device", type=parse_device, default="cpu",
@@ -126,12 +126,19 @@ def make_parser() -> argparse.ArgumentParser:
                              "used is an error (default: cpu)")
     parser.add_argument("--color", default=None, help="the colour stream (default <camera>/color)")
     parser.add_argument("--node", default="yolox", help="the results' part of the topic: <camera>/<node>/...")
-    weights.add_arguments(parser)  # --download-only (a mode of the command line), --no-download
+    store.add_arguments(parser)  # --download-only (a mode of the command line), --no-download
     add_arguments(parser)  # --connect, --listen, --config; default: the PC's Zenoh router
     # --max-hz: every frame it can take by default; --local: auto or shm (a CPU node reads shared memory)
     node.add_arguments(parser, local=("auto", "shm"))
     node.Parameters.add_arguments(parser)  # --param NAME:=VALUE, --params-file, --dump-params, --params-read-only
     return parser
+
+
+def draw(rgb: np.ndarray, found) -> np.ndarray:
+    """The overlay's image: each detection's box, class name and score (``person 0.87``) in its class's colour."""
+    names = [COCO_CLASSES[int(label)] for label in found.labels]
+    return drawn.draw_boxes(rgb, found.boxes, [f"{n} {float(s):.2f}" for n, s in zip(names, found.scores, strict=True)],
+                            [drawn.colour(int(label)) for label in found.labels])
 
 
 def load_detector(path, size: int, threads: int, device: str):
@@ -143,9 +150,9 @@ def load_detector(path, size: int, threads: int, device: str):
 
 def main(argv=None) -> int:
     parser = make_parser()
-    args = weights.parse_args(parser, argv)  # --download-only: --camera not required
+    args = store.parse_args(parser, argv)  # --download-only: --camera not required
     if args.download_only:
-        return weights.download_only(weights.needed(args.model))
+        return weights.STORE.download_only(weights.needed(args.model))
     camera = topics.check_name(args.camera)
     # the options as parameters (the terminal interface shows them): read-only, but those LIVE, which the loop reads
     session = open_from_args(args)
@@ -171,11 +178,11 @@ def main(argv=None) -> int:
 
     node.start("xblick-yolox", max_hz=args.max_hz, local=args.local)
     try:
-        weights.ensure(weights.needed(args.model), download=not args.no_download)
-    except weights.WeightsError as error:
+        weights.STORE.ensure(weights.needed(args.model), download=not args.no_download)
+    except store.WeightsError as error:
         params.close()
         session.close()
-        return weights.fail(error)
+        return weights.STORE.fail(error)
     try:
         detector = load_detector(weights.path_of(args.model), INPUT_SIZE[args.model], args.threads, args.device)
     except RuntimeError as error:  # a --device that ONNX Runtime cannot use: one line, no CPU instead
@@ -184,17 +191,16 @@ def main(argv=None) -> int:
         session.close()
         return 1
 
-    from .overlay import OverlayWorker  # noqa: PLC0415 - Pillow's drawing, only with --overlay
-
     wake = threading.Event()
-    color = db.ImageSubscriber(session, color_base, transport="auto", local=args.local, max_hz=args.max_hz)
+    # camera_info: the overlay forwards it (the same camera image)
+    color = db.ImageSubscriber(session, color_base, transport="auto", camera_info=args.overlay, local=args.local,
+                               max_hz=args.max_hz)
     history = FrameHistory(color, KEEP_FRAMES, wake.set)
     detections_pub = db.DetectionPublisher(session, topics.detections(camera, args.node, "detections_2d"),
                                            db.Detection2DArray)
     overlay = None
     if args.overlay:  # without the option no publisher exists: no topic, no info record
-        overlay = OverlayWorker(db.CameraPublisher(session, f"{camera}/{args.node}/overlay", encoding="rgb8",
-                                                   frame_id="", source="yolox"), COCO_CLASSES)
+        overlay = drawn.Overlay(session, camera, args.node, draw, source="yolox")
     report = node.Reporter(session, camera, args.node, "xblick-yolox", max_hz=args.max_hz)
     report.watch(color)
     outputs = "detections_2d" + (",overlay" if overlay is not None else "")
@@ -230,7 +236,7 @@ def main(argv=None) -> int:
                 counts["objects"] += len(found)
                 counts["latency"] += time.time() - stamp / 1e9
                 if overlay is not None:
-                    overlay.put(stamp, frame.header.frame_id, rgb, found)
+                    overlay.put(stamp, frame.header.frame_id, rgb, found, camera_info=color.camera_info)
             if report.due():
                 d, seconds = report.take()
                 n = max(d["frames"], 1)
@@ -247,8 +253,7 @@ def main(argv=None) -> int:
     finally:
         history.close()  # and its subscriber
         if overlay is not None:
-            overlay.close()
-            overlay.publisher.close()
+            overlay.close()  # and its publisher
         detections_pub.close()
         report.close()
         params.close()

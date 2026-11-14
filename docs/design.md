@@ -33,10 +33,12 @@ The overlay convention, which later nodes follow:
 | --- | --- |
 | Option | `--overlay`, off by default, read-only (it applies at the start) |
 | Key | `<camera>/<node>/overlay`, an ordinary image stream |
-| Encoding | `rgb8`, the colour frame's size, its stamp and its camera frame. Remote readers get JPEG. |
+| Encoding | `rgb8`, the colour frame's size, its stamp, its camera frame and its camera_info. Remote readers get JPEG. |
 | Without the option | no publisher, so no topic and no info record |
 | Order | the node publishes the detections first, then hands the frame to the overlay thread |
 | Load | the thread draws only while a subscriber exists. It keeps one frame, and a newer frame replaces a waiting one. |
+| camera_info | the colour stream's, forwarded with each overlay frame |
+| Code | the core's `xblick.overlay`: `Overlay` publishes and draws in its thread, `draw_boxes` draws. The node's `draw` gives the texts and colours. |
 
 The drawing shows each box in a fixed colour per class, with the class name and the score above the box. The best
 detection is drawn last, so it lies on top. The diagnostics count the overlays published and replaced.
@@ -48,7 +50,7 @@ detection is drawn last, so it lies on top. The diagnostics count the overlays p
 | `tests/test_model.py` | letterbox, grids, decoding and suppression on synthetic outputs, the real models on `office.png` (skip without `weights/`) |
 | `tests/test_overlay.py` | the drawing: boxes and labels where the detections are |
 | `tests/test_node.py` | conversions and options, the node as its own process with a stand-in model and with the real tiny model |
-| `tests/test_weights.py` | the download, against a local HTTP server |
+| `tests/test_weights.py` | the model list, `--download-only`, `--no-download` and a start without the model, against a local HTTP server |
 
 The stand-in model (`tests/standin.py`) replaces only ONNX Runtime. It returns an output in which a person and a cup
 are found, so the node's pre- and post-processing run as they do with the real model.

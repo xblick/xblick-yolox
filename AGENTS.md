@@ -2,7 +2,7 @@
 
 xblick-yolox: Megvii's YOLOX object detector (COCO, 80 classes) as a Durchblick node on the CPU. ONNX Runtime runs
 the ONNX files of YOLOX's release 0.1.1rc0; pre- and post-processing in numpy (`model.py`). Optional overlay image
-stream (`--overlay`). Version 0.1.0, tested on a test camera and a published image, not with a real webcam, not on a
+stream (`--overlay`). Version 0.1.1, tested on a test camera and a published image, not with a real webcam, not on a
 GPU. Human documentation: `README.md`, `docs/design.md`, `docs/performance.md`. Transport-wide traps are in the core's
 `AGENTS.md` (github.com/xblick/xblick). Style of all documentation: the core's `docs/project/writing-docs.md`.
 
@@ -10,7 +10,7 @@ GPU. Human documentation: `README.md`, `docs/design.md`, `docs/performance.md`. 
 
 ```bash
 tools/setup.sh                                       # uv sync --frozen, then xblick-yolox --download-only (tiny)
-.venv/bin/python -m pytest -q                        # ~40 tests, ~20 s; real-model tests skip without weights/
+.venv/bin/python -m pytest -q                        # 25 tests, ~7 s; real-model tests skip without weights/
 .venv/bin/xblick-yolox --download-only --model s     # one model into weights/
 .venv/bin/ruff check src tests tools                 # lint; 120 columns
 taskset -c 0-3 .venv/bin/python tools/bench.py       # ms per frame of each model in weights/, ~1 min
@@ -22,12 +22,12 @@ taskset -c 0-3 .venv/bin/python tools/bench.py       # ms per frame of each mode
 - Fixed defaults only: `--model tiny`, `--score 0.3`, `--nms 0.45`, `--threads 4`, `--device cpu`. Never derive a
   default from the machine, the installed packages or a measurement.
 - `--device cuda[:N]` without a usable CUDA provider is an error. Never fall back to the CPU.
-- Overlay: no publisher without `--overlay`. Publish the detections before handing the frame to `OverlayWorker`. Only
-  that worker thread calls the overlay publisher.
-- Weights: `weights.py` is the one list (`MODELS`: URL, size, SHA-256 measured from the downloaded files). From
-  `Weight` on it is the same in every node; do not edit that part here.
+- Overlay: the core's `xblick.overlay` (`add_argument`, `Overlay`, `draw_boxes`). No `Overlay` without `--overlay`.
+  Publish the detections before `overlay.put`. Report what the core helper lacks; do not work around it here.
+- Weights: `weights.py` is the one list (`MODELS`: URL, size, SHA-256 measured from the downloaded files) and
+  `STORE` (`xblick.weights.Store`, root `weights/`). The download itself is the core's.
 - `model.py` follows YOLOX's ONNX format; keep `tests/test_model.py` green after any change of letterbox or decode.
-- Durchblick pin: `xblick>=0.5.1,<0.6`. Dependencies from PyPI only.
+- Durchblick pin: `xblick>=0.5.3,<0.6`. Dependencies from PyPI only.
 - 120 columns. Docstrings say what, comments say why. Update `README.md` and `docs/` with every change of behaviour.
 
 ## Traps
@@ -46,9 +46,8 @@ taskset -c 0-3 .venv/bin/python tools/bench.py       # ms per frame of each mode
 | Path | Content |
 | --- | --- |
 | `src/xblick_yolox/model.py` | `letterbox`, `grids`, `decode`, `nms`, `postprocess`, `Detector`, `COCO_CLASSES`, `INPUT_SIZE` |
-| `src/xblick_yolox/overlay.py` | `draw`, `OverlayWorker` |
-| `src/xblick_yolox/node.py` | options, the loop, publishing, diagnostics |
-| `src/xblick_yolox/weights.py` | `MODELS`, `needed`, `path_of`, download engine |
+| `src/xblick_yolox/node.py` | options, the loop, publishing, `draw` (the overlay), diagnostics |
+| `src/xblick_yolox/weights.py` | `MODELS`, `needed`, `path_of`, `STORE` |
 | `weights/` | `yolox_<model>.onnx`, `.download.lock`. Not in git. |
 | `tests/` | `test_model.py`, `test_overlay.py`, `test_node.py`, `test_weights.py`, `standin.py`, `data/office.png` |
 | `tools/` | `setup.sh`, `bench.py`, `check_references.sh` |

@@ -652,7 +652,7 @@ wheels = [
 
 [[package]]
 name = "xblick"
-version = "0.5.1"
+version = "0.5.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "eclipse-zenoh" },
@@ -663,17 +663,17 @@ dependencies = [
     { name = "pillow", version = "13.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "textual" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b8/14/7870eebaaad4f8f841578b58b78c018c8c3219714d8acfc02f8f88c5028d/xblick-0.5.1.tar.gz", hash = "sha256:d2ab2e3e71f27e6fc6cff0825eaae7de0e4b942c81682222a7f696ce97bd7a95", size = 620848, upload-time = "2026-11-14T01:06:08.016Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0c/d1/9bc36579ace4f92a8434ea8ccc39d0dd2502c5bd60a6062274fe8bf6c9dd/xblick-0.5.3.tar.gz", hash = "sha256:2bc591b042eca439d9e5ac213aed21f963c4e7375a412c1422ba1496db9fd7a9", size = 690939, upload-time = "2026-11-14T15:54:37.477Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/9f/b671d961c394f2ba62dbfaae83f0a7422818143623aa8ab34d2f41dc26fe/xblick-0.5.1-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3782b4deeb46ffd3dd31ad7e8260dd3782b189cbc3837bdfbbc5a05f16b657bd", size = 402240, upload-time = "2026-11-14T01:06:02Z" },
-    { url = "https://files.pythonhosted.org/packages/c3/86/9a8fc3ef4bcc0f411e2ede07ba8339a5669fdf3ec51db7cec33f994e5057/xblick-0.5.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9ffeffa58134bcc5891aaa9c916f896176a7fdfaee41b7c47b590f894f5e6e55", size = 401807, upload-time = "2026-11-14T01:06:03.369Z" },
-    { url = "https://files.pythonhosted.org/packages/7f/1f/b2091228564891cffd9f906fd20a5c796d2938c34d3bfdff4d8c19dc4af8/xblick-0.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8477b33ab5def28809382551eeac0a623e3fb919f5468e836b5a57e5217d6b86", size = 401493, upload-time = "2026-11-14T01:06:05.49Z" },
-    { url = "https://files.pythonhosted.org/packages/54/cf/f61e0da4a61b99a5d639029aca94e7a7c15c6e27ef0a18f80f5b15797965/xblick-0.5.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f72620d940aad4647dbc7a6b5c99ce75d20960af1d943bdf9e049490d60e650b", size = 401408, upload-time = "2026-11-14T01:06:06.68Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/1f/c4f3ed8fe1ca4102f95998a492e6e3dd18f54ffb6b40b42316d72f1730ac/xblick-0.5.3-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:e4166eb2fffc2ad4e02714372b18e16aaeed91b77d069111e3db3278044a8dcf", size = 433181, upload-time = "2026-11-14T15:54:32.051Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/20/044e4ec688abc303c40180bdc4293f9207bba315a5700fd8f4fa3b897b03/xblick-0.5.3-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:00ec4d7531b79c545bf75314b1a77ddc7a67488eba6da69b9ed1be01cbbf5299", size = 432744, upload-time = "2026-11-14T15:54:33.794Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/58/885e4a3f1f92ecee12dc689ea646c4e0255d636325d811d47dfe6b024ee5/xblick-0.5.3-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1a929d3b69aea015beb603c6cf28e07dbf126d086a20166f293d527672a70c4a", size = 432433, upload-time = "2026-11-14T15:54:35.019Z" },
+    { url = "https://files.pythonhosted.org/packages/0d/9a/7eaaf04ce4d58127e4dba647693f163fd5991ebe0d9d5e380493b7930420/xblick-0.5.3-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8e63199f4fc5c44d3b87ea626aa39af00a2d3598c53b5302c17f1437404a6190", size = 432350, upload-time = "2026-11-14T15:54:36.272Z" },
 ]
 
 [[package]]
 name = "xblick-yolox"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -697,7 +697,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.26" },
     { name = "onnxruntime", specifier = ">=1.20" },
     { name = "pillow", specifier = ">=10.1" },
-    { name = "xblick", specifier = ">=0.5.1,<0.6" },
+    { name = "xblick", specifier = ">=0.5.3,<0.6" },
 ]
 
 [package.metadata.requires-dev]

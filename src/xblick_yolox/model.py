@@ -159,6 +159,8 @@ class Detector:
                 raise RuntimeError(f"--device {device}: this onnxruntime has no CUDA provider (it has "
                                    f"{', '.join(ort.get_available_providers())}); install onnxruntime-gpu in its "
                                    "place, or use --device cpu")
+            # CUDA and cuDNN of the nvidia-* wheels that onnxruntime-gpu[cuda,cudnn] installs (else the system's)
+            ort.preload_dlls()
             providers = [("CUDAExecutionProvider", {"device_id": int(device.split(":")[1])}), "CPUExecutionProvider"]
         session = ort.InferenceSession(str(path), sess_options=options, providers=providers)
         if device != "cpu" and session.get_providers()[0] != "CUDAExecutionProvider":
@@ -169,6 +171,11 @@ class Detector:
             raise ValueError(f"{path}: input {given.shape} and output {out.shape}, expected [1, 3, {self.size}, "
                              f"{self.size}] and [1, {anchors}, 85] (a YOLOX ONNX file of COCO's 80 classes)")
         self._input = given.name
+        if device != "cpu":  # a GPU that loads but cannot compute (no cuDNN) fails here, at the start
+            try:
+                session.run(None, {given.name: np.zeros((1, 3, self.size, self.size), np.float32)})
+            except Exception as error:  # noqa: BLE001 - ONNX Runtime's errors: one line for the user
+                raise RuntimeError(f"--device {device}: ONNX Runtime failed on the GPU: {str(error)[:300]}") from None
         return session
 
     def infer(self, blob: np.ndarray) -> np.ndarray:
