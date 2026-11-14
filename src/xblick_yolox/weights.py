@@ -20,13 +20,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from xblick import weights
+from xblick import paths, weights
 
 PROG = "xblick-yolox"
 NODE = "yolox"  # the short name: its cache directory is ~/.cache/xblick/yolox
 REQUIRED = ()  # (path, what): code from tools/setup.sh that must be there first; none here
 REPO = Path(__file__).resolve().parents[2]
 FORMER = REPO / "weights"  # the models' place before 0.1.2 (the checkout): not used, the store names the move
+# the GPU runtime's place in 0.1.3, the node's own; since 0.1.4 it is shared (runtime.py): not used, the mv named
+FORMER_GPU_RUNTIME = [paths.cache_dir(NODE) / "onnxruntime-gpu"]
 RELEASE = "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0"
 MODELS = {  # name -> (URL, size, SHA-256): into <root>/<the URL's file name>
     "nano": (f"{RELEASE}/yolox_nano.onnx", 3_659_407,

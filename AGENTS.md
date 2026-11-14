@@ -20,6 +20,9 @@ taskset -c 0-3 .venv/bin/python tools/bench.py       # ms per frame of each mode
 
 ## Rules
 
+- `runtime.py` and `tests/test_runtime.py` are the same in every ONNX Runtime node (xblick-yolox, xblick-rtdetrv4):
+  change them in all. The GPU runtime lives outside the venv in `~/.cache/xblick/onnxruntime/gpu-<version>-cp<XY>`;
+  never swap onnxruntime for onnxruntime-gpu in `.venv` (`uv run` restores the CPU package over it).
 - Files: the weights are in the node's cache directory (`xblick.paths.cache_dir("yolox")`, `~/.cache/xblick/yolox`), never in
   the checkout. `weights.STORE = Store(PROG, node=NODE, ..., former=[FORMER])`, `Weight` paths relative to its root;
   `store = weights.store_for(parser, args)` (`--weights-dir`) for `download_only`, `ensure` and `fail`, with
@@ -52,9 +55,9 @@ taskset -c 0-3 .venv/bin/python tools/bench.py       # ms per frame of each mode
 
 | Path | Content |
 | --- | --- |
+| `src/xblick_yolox/runtime.py` | ONNX Runtime sessions (CPU, GPU), the shared GPU runtime (`setup`, `install`, `detect`, `onnxruntime_for`, `prepare`); the same file in every ONNX Runtime node |
 | `src/xblick_yolox/model.py` | `letterbox`, `grids`, `decode`, `nms`, `postprocess`, `Detector`, `COCO_CLASSES`, `INPUT_SIZE` |
 | `src/xblick_yolox/node.py` | options, the loop, publishing, `draw` (the overlay), diagnostics |
-| `src/xblick_yolox/gpu.py` | the GPU runtime outside the venv: `runtime_dir`, `onnxruntime_for`, the pinned onnxruntime-gpu and CUDA libraries |
 | `src/xblick_yolox/weights.py` | `MODELS`, `needed`, `path_of`, `STORE` |
 | `~/.cache/xblick/yolox/` | `yolox_<model>.onnx`, `.download.lock`: the node's cache directory. The checkout's `weights/` is the former place. |
 | `tests/` | `test_model.py`, `test_overlay.py`, `test_node.py`, `test_weights.py`, `standin.py`, `data/office.png` |

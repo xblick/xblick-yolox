@@ -5,40 +5,33 @@
 # * the model in ~/.cache/xblick/yolox (the node's cache directory), through xblick-yolox --download-only (weights.py's
 #   MODELS; only if missing): YOLOX-tiny by default (20 MB) from YOLOX's GitHub release 0.1.1rc0. The node downloads
 #   it at its start too.
-# * with --gpu, once: the GPU runtime (gpu.py) in ~/.cache/xblick/yolox/onnxruntime-gpu: onnxruntime-gpu with
-#   NVIDIA's CUDA 13 and cuDNN 9 libraries from PyPI (2.4 GB). It is outside the venv, so uv run, uv sync and this
-#   script without --gpu leave it as it is; xblick-yolox --device cuda uses it. Remove that directory to drop it.
+# * the GPU runtime for --device cuda (runtime.py), shared by the ONNX Runtime nodes, in
+#   ~/.cache/xblick/onnxruntime/gpu-<version>-cp<Python>: onnxruntime-gpu with NVIDIA's CUDA 13 and cuDNN 9 libraries
+#   from PyPI (2.4 GB), outside the venv, so uv run and uv sync leave it as it is. Without an option: installed when
+#   an NVIDIA GPU is present (nvidia-smi lists one, its driver is 580 or newer), else one line says so. --gpu: always
+#   (fails if it cannot be installed). --no-gpu: never. It is installed once; a second call reuses it.
 #
-#     tools/setup.sh [--gpu] [--model tiny|nano|s|m|l|x|darknet53]
+#     tools/setup.sh [--gpu | --no-gpu] [--model tiny|nano|s|m|l|x|darknet53]
 #
-# Needs uv (UV names it, default uv on PATH). Run again, it does only what changed.
+# Needs uv (UV names it, default uv on PATH). Run again, it does only what changed. It never asks.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 UV=${UV:-uv}
 command -v "$UV" > /dev/null || { echo "no uv: $UV" >&2; exit 1; }
-gpu=0
+mode=auto
 args=()
 for arg in "$@"; do
-    if [[ $arg == --gpu ]]; then gpu=1; else args+=("$arg"); fi
+    case $arg in
+        --gpu) [[ $mode != off ]] || { echo "--gpu and --no-gpu exclude each other" >&2; exit 2; }; mode=on ;;
+        --no-gpu) [[ $mode != on ]] || { echo "--gpu and --no-gpu exclude each other" >&2; exit 2; }; mode=off ;;
+        *) args+=("$arg") ;;
+    esac
 done
 
 "$UV" sync --frozen
 .venv/bin/xblick-yolox --download-only "${args[@]}"
-if (( gpu )); then
-    read -r dir version libraries < <(.venv/bin/python -c 'from xblick_yolox import gpu
-print(gpu.runtime_dir(), gpu.ONNXRUNTIME_GPU, ",".join(gpu.CUDA_LIBRARIES))')
-    if [[ -d $dir/onnxruntime_gpu-$version.dist-info ]]; then
-        echo "xblick-yolox: GPU runtime onnxruntime-gpu $version in $dir, nothing to install"
-    else
-        [[ ! -e $dir.part ]] || { echo "$dir.part exists (an interrupted install): remove it, then run again" >&2; exit 1; }
-        echo "xblick-yolox: installing the GPU runtime (onnxruntime-gpu $version, CUDA 13, cuDNN 9; 2.4 GB) into $dir"
-        # onnxruntime-gpu alone (its other dependencies are the venv's), then NVIDIA's libraries with theirs
-        "$UV" pip install --python .venv/bin/python --target "$dir.part" --no-deps "onnxruntime-gpu==$version"
-        IFS=, read -r -a libs <<< "$libraries"
-        "$UV" pip install --python .venv/bin/python --target "$dir.part" "${libs[@]}"
-        [[ ! -e $dir ]] || { echo "$dir exists with another version: remove it, then run again" >&2; exit 1; }
-        mv "$dir.part" "$dir"
-        echo "xblick-yolox: GPU runtime in place; start the node with --device cuda"
-    fi
-fi
+# the GPU runtime's former place (0.1.3: the node's own) is named for a mv, never used
+former=$(.venv/bin/python -c 'from xblick_yolox import weights; print(weights.FORMER_GPU_RUNTIME[0])')
+.venv/bin/python -m xblick_yolox.runtime setup --uv "$(command -v "$UV")" --prog xblick-yolox --mode "$mode" \
+    --former "$former"
 echo "xblick-yolox: set up"

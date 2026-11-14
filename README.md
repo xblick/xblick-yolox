@@ -57,6 +57,9 @@ The node prints these terms before it downloads a model. This repository contain
 tools/setup.sh
 ```
 
+On a PC with an NVIDIA GPU the script also installs the GPU runtime for `--device cuda` (2.4 GB), unless you add
+`--no-gpu`. [On a GPU](#on-a-gpu) describes the rule.
+
 The script creates `.venv` exactly as `uv.lock` states, with ONNX Runtime for the CPU and Durchblick from PyPI. Then
 it runs `xblick-yolox --download-only`, which downloads YOLOX-tiny into `~/.cache/xblick/yolox/` and checks its size and SHA-256.
 `tools/setup.sh --model s` downloads another model. The script downloads only what is missing.
@@ -124,27 +127,41 @@ at the next start.
 ## On a GPU
 
 ONNX Runtime for a GPU is a package of its own, `onnxruntime-gpu`, which cannot sit in `.venv` beside the CPU
-package: both install the Python package `onnxruntime`, and `uv run` and `uv sync` bring the CPU package back. Install
-the GPU runtime once into the node's cache directory, outside `.venv`:
+package: both install the Python package `onnxruntime`, and `uv run` and `uv sync` bring the CPU package back. The
+GPU runtime therefore lives outside `.venv`, in one directory that every Durchblick node with ONNX Runtime shares:
+
+```
+~/.cache/xblick/onnxruntime/gpu-1.32.0-cp312/      (onnxruntime-gpu version, Python version)
+```
+
+`tools/setup.sh` installs it when the PC has an NVIDIA GPU. The rule: `nvidia-smi` runs, exits 0 and lists at least
+one GPU. Before the download the script prints the GPUs it found, what it installs and where, and how to skip it. The
+runtime is `onnxruntime-gpu` 1.32.0 with NVIDIA's CUDA 13 and cuDNN 9 libraries from PyPI (2.4 GB). A second call, or
+another node that installed it already, reuses it. `uv run`, `uv sync` and `tools/setup.sh` leave it as it is.
+
+| Case | What `tools/setup.sh` does |
+| --- | --- |
+| no `nvidia-smi`, or it fails or lists no GPU | one line: the node computes on the CPU, `tools/setup.sh --gpu` adds the runtime later |
+| a GPU with a driver older than 580 | one line: the runtime needs driver 580 or newer and was not installed |
+| a GPU with driver 580 or newer | installs the runtime, or reuses it |
+| `--gpu` | installs the runtime whatever the check says (an image built on a PC without a GPU) |
+| `--no-gpu` | never installs it |
+
+Requirements of the GPU runtime: an NVIDIA driver 580 or newer (CUDA 13), a GPU that CUDA 13 supports (Turing, RTX
+20 series, or newer), Python 3.11 or newer (onnxruntime-gpu 1.32.0 has no wheel for 3.10). NVIDIA's libraries come as
+wheels, so the PC needs no CUDA installation.
 
 ```bash
-tools/setup.sh --gpu
 uv run xblick-yolox --camera test/camera --overlay --device cuda
 ```
 
-`tools/setup.sh --gpu` installs `onnxruntime-gpu` 1.32.0 with NVIDIA's CUDA 13 and cuDNN 9 libraries from PyPI into
-`~/.cache/xblick/yolox/onnxruntime-gpu/` (2.4 GB). The libraries come as NVIDIA's wheels, so the PC needs no CUDA
-installation. It needs an NVIDIA driver for CUDA 13: version 580 or newer on Linux, and a GPU that CUDA 13 supports
-(Turing, RTX 20 series, or newer). `uv run`, `uv sync` and `tools/setup.sh` leave that directory as it is. Remove it
-to go back to the CPU only.
+With `--device cuda` the node loads ONNX Runtime from the shared directory, and every part of the model runs on the
+GPU. A model that the GPU cannot run whole is an error, never a silent switch to the CPU. Scaling the frame, decoding the boxes, the suppression and the overlay's drawing stay on the CPU. The start
+prints "preparing the GPU" at once, then the start line, for example "model on cuda:0; ... on the CPU". Loading CUDA
+and the first computation can take a while on the first start. Ctrl-C and SIGTERM end the node during that time too.
 
-With `--device cuda` the node loads ONNX Runtime from that directory, and every part of the model runs on the GPU. A
-model that the GPU cannot run whole is an error, never a silent switch to the CPU. Scaling the frame, decoding the
-boxes, the suppression and the overlay's drawing stay on the CPU. The start line says so:
-
-```
-xblick-yolox: test/camera/color -> test/camera/yolox/{detections_2d,overlay}: YOLOX-tiny (416 x 416), model on cuda:0; scaling, decoding and drawing on the CPU
-```
+Version 0.1.3 kept the runtime in `~/.cache/xblick/yolox/onnxruntime-gpu/`. The node does not use it there, and both
+the node and `tools/setup.sh` print the `mv` to the shared place.
 
 Without the GPU runtime, `--device cuda` ends the start with one line that names `tools/setup.sh --gpu`. When CUDA
 cannot be loaded, for example with an older driver, the line gives ONNX Runtime's message and the libraries that failed

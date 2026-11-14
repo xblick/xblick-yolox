@@ -124,8 +124,8 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("--threads", type=int, default=4,
                         help="CPU threads for the model (ONNX Runtime's intra-op threads) (default: 4)")
     parser.add_argument("--device", type=parse_device, default="cpu",
-                        help="cpu, or cuda (GPU 0) or cuda:N with the onnxruntime-gpu package; a GPU that cannot be "
-                             "used is an error (default: cpu)")
+                        help="cpu, or cuda (GPU 0) or cuda:N with the shared GPU runtime (tools/setup.sh); a GPU "
+                             "that cannot be used is an error (default: cpu)")
     parser.add_argument("--color", default=None, help="the colour stream (default <camera>/color)")
     parser.add_argument("--node", default="yolox", help="the results' part of the topic: <camera>/<node>/...")
     store.add_arguments(parser)  # --download-only (a mode of the command line), --no-download
@@ -153,8 +153,9 @@ def where_it_computes(device: str, threads: int) -> str:
 def load_detector(path, threads: int, device: str):
     """The model (model.Detector); tests replace this function by a stand-in."""
     from .model import Detector  # noqa: PLC0415 - loads ONNX Runtime
+    from .runtime import prepare  # noqa: PLC0415
 
-    return Detector(path, threads, device)
+    return prepare(lambda: Detector(path, threads, device), device, weights.PROG)
 
 
 def main(argv=None) -> int:

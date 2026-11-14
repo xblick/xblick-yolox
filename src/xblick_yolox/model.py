@@ -17,8 +17,6 @@ of YOLOX is copied:
 
 from __future__ import annotations
 
-import contextlib
-import io
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -148,41 +146,9 @@ class Detector:
         self.cells, self.strides = grids(self.size)
 
     def _load(self, path: Path, threads: int, device: str):
-        from .gpu import onnxruntime_for  # noqa: PLC0415 - loaded with the model
+        from . import runtime, weights  # noqa: PLC0415 - loaded with the model
 
-        ort = onnxruntime_for(device)  # the venv's (cpu) or the GPU runtime's (cuda:N), else one line naming the step
-        options = ort.SessionOptions()
-        options.intra_op_num_threads = threads  # the threads for one model call
-        options.inter_op_num_threads = 1  # one call at a time
-        options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        # the threads sleep between frames (a notebook's battery) instead of spinning while they wait for work
-        options.add_session_config_entry("session.intra_op.allow_spinning", "0")
-        providers = ["CPUExecutionProvider"]
-        failed = io.StringIO()  # what preload_dlls prints: the libraries it could not load
-        if device != "cpu":
-            if "CUDAExecutionProvider" not in ort.get_available_providers():
-                raise RuntimeError(f"--device {device}: the GPU runtime's onnxruntime has no CUDA provider (it has "
-                                   f"{', '.join(ort.get_available_providers())}); run tools/setup.sh --gpu again")
-            # CUDA and cuDNN of NVIDIA's wheels beside onnxruntime-gpu; ONNX Runtime prints the ones that fail to load
-            with contextlib.redirect_stdout(failed):
-                ort.preload_dlls()
-            index = int(device.split(":")[1])
-            # device_id only for another GPU than 0, the CUDA provider's default: given, ONNX Runtime 1.32 looks for a
-            # plugin EP device first and warns that it found none before it takes the classic CUDA provider
-            providers = [("CUDAExecutionProvider", {"device_id": index}) if index else "CUDAExecutionProvider"]
-            # every node on the GPU: without the CPU provider in the list and with the fallback off, a model that the
-            # GPU cannot run whole is an error, not a session that silently computes on the CPU
-            options.add_session_config_entry("session.disable_cpu_ep_fallback", "1")
-        try:
-            session = ort.InferenceSession(str(path), sess_options=options, providers=providers)
-        except Exception as error:  # noqa: BLE001 - ONNX Runtime's errors: one line for the user
-            if device == "cpu":
-                raise
-            raise RuntimeError(gpu_failure(device, error, failed.getvalue())) from None
-        if device != "cpu" and session.get_providers()[0] != "CUDAExecutionProvider":
-            raise RuntimeError(f"--device {device}: ONNX Runtime could not use the GPU ({session.get_providers()})"
-                               + loading_failures(failed.getvalue()))
+        session, printed = runtime.open_session(path, threads, device, weights.PROG, weights.FORMER_GPU_RUNTIME)
         (given,), (out,) = session.get_inputs(), session.get_outputs()
         shape = list(given.shape)
         if len(shape) != 4 or shape[:2] != [1, 3] or shape[2] != shape[3] or not isinstance(shape[2], int) \
@@ -195,11 +161,8 @@ class Detector:
             raise ValueError(f"{path}: output {out.shape}, expected [1, {anchors}, 85] for an input of {self.size}: "
                              "strides 8, 16 and 32, COCO's 80 classes")
         self._input = given.name
-        if device != "cpu":  # a GPU that loads but cannot compute (no cuDNN) fails here, at the start
-            try:
-                session.run(None, {given.name: np.zeros((1, 3, self.size, self.size), np.float32)})
-            except Exception as error:  # noqa: BLE001 - ONNX Runtime's errors: one line for the user
-                raise RuntimeError(gpu_failure(device, error, failed.getvalue())) from None
+        if device != "cpu":
+            runtime.trial(session, {given.name: np.zeros((1, 3, self.size, self.size), np.float32)}, device, printed)
         return session
 
     def infer(self, blob: np.ndarray) -> np.ndarray:
@@ -212,17 +175,3 @@ class Detector:
         raw = self.infer(blob)
         return postprocess(raw, self.cells, self.strides, r, (rgb.shape[1], rgb.shape[0]), score, nms, classes)
 
-
-def loading_failures(printed: str) -> str:
-    """The libraries ONNX Runtime's ``preload_dlls`` could not load (its lines ``Failed to load <path>: <why>``), as
-    the end of an error line; empty when all loaded."""
-    failures = [line.removeprefix("Failed to load ").strip() for line in printed.splitlines()
-                if line.startswith("Failed to load ")]
-    return f"; libraries that failed to load: {' | '.join(failures)}" if failures else ""
-
-
-def gpu_failure(device: str, error: Exception, printed: str) -> str:
-    """One line for a GPU session that failed: ONNX Runtime's message (shortened) and the libraries that did not
-    load."""
-    message = " ".join(str(error).split())
-    return f"--device {device}: ONNX Runtime failed on the GPU: {message[:400]}{loading_failures(printed)}"

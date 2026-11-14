@@ -60,19 +60,6 @@ def test_the_start_line_says_where_the_model_computes():
     assert node.where_it_computes("cuda:0", 4) == "model on cuda:0; scaling, decoding and drawing on the CPU"
 
 
-def test_cuda_without_the_gpu_runtime_names_the_one_step(tmp_path, monkeypatch):
-    from xblick.weights import Store
-
-    from xblick_yolox import gpu
-
-    monkeypatch.setattr(weights, "STORE", Store(weights.PROG, root=tmp_path, terms="", repo=tmp_path))
-    with pytest.raises(RuntimeError) as error:
-        gpu.onnxruntime_for("cuda:0")
-    message = str(error.value)
-    assert "tools/setup.sh --gpu" in message and str(tmp_path / "onnxruntime-gpu") in message
-    assert "\n" not in message and "CUDA 13" in message
-
-
 def test_a_missing_camera_option_ends_with_one_line(capsys):
     with pytest.raises(SystemExit) as exit_:
         node.main([])
