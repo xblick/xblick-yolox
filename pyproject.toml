@@ -1,6 +1,6 @@
 [project]
 name = "xblick-yolox"
-version = "0.1.2"
+version = "0.1.3"
 description = "YOLOX (Megvii's object detector, COCO's 80 classes) as a Durchblick node, on the CPU with ONNX Runtime"
 readme = "README.md"
 license = "Apache-2.0"

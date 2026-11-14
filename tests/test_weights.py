@@ -62,14 +62,22 @@ def home(tmp_path, monkeypatch, server):
 
 def test_the_files_are_those_of_yolox_release_0_1_1rc0():
     release = "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0"
-    assert {name: (w.path.name, w.source.url, w.size, w.sha256) for name in ("nano", "tiny", "s")
-            for w in weights.needed(name)} == {  # measured from the downloaded files, 2026-11-14
+    assert {name: (w.path.name, w.source.url, w.size, w.sha256) for name in weights.MODELS
+            for w in weights.needed(name)} == {  # measured from the downloaded files, 2026-11-14 and -15
         "nano": ("yolox_nano.onnx", f"{release}/yolox_nano.onnx", 3_659_407,
                  "c789161ed43c8269fcd4e67c67eeeb4e80c622da2eb296a20bc6007bd18a0b7d"),
         "tiny": ("yolox_tiny.onnx", f"{release}/yolox_tiny.onnx", 20_219_662,
                  "427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7"),
         "s": ("yolox_s.onnx", f"{release}/yolox_s.onnx", 35_858_002,
-              "c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063")}
+              "c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063"),
+        "m": ("yolox_m.onnx", f"{release}/yolox_m.onnx", 101_259_744,
+              "21ff6cfdeb53b013bac2249599e55f00bff3cfdfdab37ed7a4620818c1d15b3f"),
+        "l": ("yolox_l.onnx", f"{release}/yolox_l.onnx", 216_746_733,
+              "7860ae79de6c89a3c1eb72ae9a2756c0ccfbe04b7791bb5880afabd97855a411"),
+        "x": ("yolox_x.onnx", f"{release}/yolox_x.onnx", 396_142_663,
+              "c892d7aaf1c4746d8a4d675bec669a4db4f434b4ee1efb654bc9b353379c7c55"),
+        "darknet53": ("yolox_darknet.onnx", f"{release}/yolox_darknet.onnx", 254_814_364,
+                      "10ccc527877c6ee5596929c4b3eee5ad6a78038647260bc9abdfce9a0df55d05")}
     assert weights.needed("nano")[0].path == Path("yolox_nano.onnx")  # below the store's root
 
 
@@ -185,3 +193,15 @@ def test_a_start_with_the_model_missing_downloads_it_first(home, server, start, 
         node.main(start)
     assert (home / "yolox_tiny.onnx").read_bytes() == DATA
     assert "YOLOX is the work of Megvii" in capsys.readouterr().out
+
+
+def test_the_model_table_is_complete_and_consistent():
+    from xblick_yolox import model
+
+    assert list(weights.MODELS) == ["nano", "tiny", "s", "m", "l", "x", "darknet53"]  # small to large
+    assert set(model.INPUT_SIZE) == set(weights.MODELS)
+    assert len({weights.file_name(name) for name in weights.MODELS}) == len(weights.MODELS)
+    assert all(url.startswith(weights.RELEASE + "/") and len(sha) == 64 and size > 0
+               for url, size, sha in weights.MODELS.values())
+    options = node.make_parser()._option_string_actions["--model"]
+    assert options.choices == tuple(weights.MODELS) and options.default == "tiny"

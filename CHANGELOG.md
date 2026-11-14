@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.3 (2026-11-15)
+
+- `--model` offers all seven models of YOLOX's release 0.1.1rc0: `nano`, `tiny`, `s`, `m`, `l`, `x` and `darknet53`
+  (the release's `yolox_darknet.onnx`). Each file is pinned by URL, exact size and SHA-256. The default stays `tiny`.
+- The node reads a model's input size from its ONNX file and checks that the output fits it.
+- `--device cuda` uses a GPU runtime outside the venv: `tools/setup.sh --gpu` installs `onnxruntime-gpu` 1.32.0 with
+  NVIDIA's CUDA 13 and cuDNN 9 libraries into `~/.cache/xblick/yolox/onnxruntime-gpu/` once. It stays across `uv run`,
+  `uv sync` and `tools/setup.sh`. The swap of packages in `.venv` that 0.1.1 documented did not survive `uv run`.
+- On a GPU every part of the model runs there (ONNX Runtime's fallback to the CPU is off). Without the GPU runtime
+  the start ends with one line that names `tools/setup.sh --gpu`. When CUDA cannot be loaded, the line names the
+  libraries that failed.
+- With `--device cuda` (GPU 0) ONNX Runtime no longer prints the warning "No registered plugin EP device found".
+- The start line says where the model computes: "model on the CPU with 4 threads" or "model on cuda:0; scaling,
+  decoding and drawing on the CPU".
+
 ## 0.1.2 (2026-11-14)
 
 - The weights moved out of the checkout into the node's cache directory, `~/.cache/xblick/yolox/`. `XBLICK_HOME` and

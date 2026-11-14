@@ -26,6 +26,7 @@ def raw_for(objects, size: int) -> np.ndarray:
 
 class StandIn(model.Detector):
     def _load(self, path, threads, device):
+        self.size = 416
         return None
 
     def infer(self, blob):

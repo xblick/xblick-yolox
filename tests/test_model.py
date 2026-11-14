@@ -28,6 +28,22 @@ def test_grids_follow_the_output_order():
     assert strides[0, 0] == 8 and strides[52 * 52, 0] == 16 and strides[-1, 0] == 32 and tuple(cells[-1]) == (12, 12)
 
 
+def test_grids_of_the_standard_models_input():
+    cells, strides = model.grids(640)
+    assert len(cells) == 80 * 80 + 40 * 40 + 20 * 20 == 8400  # the output rows of s, m, l, x and darknet53
+    assert strides[80 * 80, 0] == 16 and strides[-1, 0] == 32 and tuple(cells[-1]) == (19, 19)
+
+
+@pytest.mark.parametrize("size", sorted(set(model.INPUT_SIZE.values())))
+def test_each_output_layout_decodes_the_synthetic_objects(size):
+    cells, strides = model.grids(size)
+    found = model.postprocess(raw_for(OBJECTS, size), cells, strides, r=size / 832, frame_size=(832, 832), score=0.3,
+                              iou=0.45)
+    assert found.labels.tolist() == [0, 41]
+    expected = np.array([[40, 60, 200, 380], [260, 200, 300, 250]]) * 832 / size  # input pixels to frame pixels
+    np.testing.assert_allclose(found.boxes, expected, atol=1e-2)
+
+
 def test_decode_and_postprocess_find_the_synthetic_objects_in_frame_pixels():
     cells, strides = model.grids(416)
     found = model.postprocess(raw_for(OBJECTS, 416), cells, strides, r=0.5, frame_size=(832, 832), score=0.3, iou=0.45)
@@ -65,14 +81,15 @@ def test_nms_drops_overlaps_of_one_class_only():
 
 
 def test_the_stand_in_detector_goes_through_the_whole_pipeline():
-    detector = StandIn(Path("none"), 416, 4)
+    detector = StandIn(Path("none"), 4)
     found = detector.detect(np.zeros((480, 640, 3), np.uint8), 0.3, 0.45)
     assert found.labels.tolist() == [0, 41]
     np.testing.assert_allclose(found.boxes[0], np.minimum(np.array([40, 60, 200, 380]) * 640 / 416, 480), atol=1e-2)
 
 
 OFFICE = Path(__file__).parent / "data" / "office.png"
-PLAUSIBLE = {"chair", "bottle", "cup", "dining table", "book", "tv", "laptop", "keyboard"}
+# what stands on and around the desk
+PLAUSIBLE = {"chair", "bottle", "cup", "dining table", "book", "tv", "laptop", "keyboard", "bowl", "scissors"}
 
 
 @pytest.mark.parametrize("name", list(weights.MODELS))
@@ -81,7 +98,9 @@ def test_the_real_model_finds_the_office_objects(name):
     if not path.is_file():
         pytest.skip(f"no {path.name} (xblick-yolox --download-only --model {name})")
     rgb = np.asarray(Image.open(OFFICE).convert("RGB"))
-    found = model.Detector(path, model.INPUT_SIZE[name], 4).detect(rgb, 0.3, 0.45)
+    detector = model.Detector(path, 4)
+    assert detector.size == model.INPUT_SIZE[name]  # read from the file; the table documents it
+    found = detector.detect(rgb, 0.3, 0.45)
     names = [model.COCO_CLASSES[i] for i in found.labels]
     # the frame shows two chairs and bottles on a desk: robust to the variant, no exact boxes
     assert names.count("chair") >= 2 and "bottle" in names, names

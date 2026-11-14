@@ -2,7 +2,7 @@
 
 xblick-yolox: Megvii's YOLOX object detector (COCO, 80 classes) as a Durchblick node on the CPU. ONNX Runtime runs
 the ONNX files of YOLOX's release 0.1.1rc0; pre- and post-processing in numpy (`model.py`). Optional overlay image
-stream (`--overlay`). Version 0.1.2, tested on a test camera and a published image, not with a real webcam, not on a
+stream (`--overlay`). Version 0.1.3, tested on a test camera and a published image, not with a real webcam, not on a
 GPU. Human documentation: `README.md`, `docs/design.md`, `docs/performance.md`. Transport-wide traps are in the core's
 `AGENTS.md` (github.com/xblick/xblick). Style of all documentation: the core's `docs/project/writing-docs.md`.
 
@@ -40,6 +40,7 @@ taskset -c 0-3 .venv/bin/python tools/bench.py       # ms per frame of each mode
 
 | Trap | What happens | Fix |
 | --- | --- | --- |
+| GPU runtime | `onnxruntime-gpu` and `onnxruntime` both install the package `onnxruntime`; `uv run` brings the CPU one back over a swap (seen: CUDA provider library gone). | Never swap in `.venv`; `tools/setup.sh --gpu` installs into `<cache>/onnxruntime-gpu`, `gpu.onnxruntime_for` imports from there. |
 | BGR input | YOLOX trained on BGR images with values 0 to 255, no normalisation. | `letterbox` flips RGB to BGR. |
 | Resize | Pillow's bilinear antialiases when it shrinks; YOLOX used OpenCV's, which does not. Scores differ slightly. | Not verified against OpenCV. |
 | Fixed input size | Each ONNX file has a fixed input (416 or 640). | `INPUT_SIZE`; `Detector` checks the shapes. |
@@ -53,6 +54,7 @@ taskset -c 0-3 .venv/bin/python tools/bench.py       # ms per frame of each mode
 | --- | --- |
 | `src/xblick_yolox/model.py` | `letterbox`, `grids`, `decode`, `nms`, `postprocess`, `Detector`, `COCO_CLASSES`, `INPUT_SIZE` |
 | `src/xblick_yolox/node.py` | options, the loop, publishing, `draw` (the overlay), diagnostics |
+| `src/xblick_yolox/gpu.py` | the GPU runtime outside the venv: `runtime_dir`, `onnxruntime_for`, the pinned onnxruntime-gpu and CUDA libraries |
 | `src/xblick_yolox/weights.py` | `MODELS`, `needed`, `path_of`, `STORE` |
 | `~/.cache/xblick/yolox/` | `yolox_<model>.onnx`, `.download.lock`: the node's cache directory. The checkout's `weights/` is the former place. |
 | `tests/` | `test_model.py`, `test_overlay.py`, `test_node.py`, `test_weights.py`, `standin.py`, `data/office.png` |

@@ -50,9 +50,27 @@ def test_options_and_their_fixed_defaults():
     assert (args.model, args.score, args.nms, args.classes, args.overlay, args.threads, args.device, args.max_hz,
             args.node) == ("tiny", 0.3, 0.45, [], False, 4, "cpu", None, "yolox")
     assert node.parse_device("cuda") == "cuda:0" and node.parse_device("cuda:2") == "cuda:2"
-    for bad in (["--model", "m"], ["--device", "gpu"], ["--local", "cuda"]):
+    for bad in (["--model", "medium"], ["--model", "darknet"], ["--device", "gpu"], ["--local", "cuda"]):
         with pytest.raises(SystemExit):
             node.make_parser().parse_args(["--camera", CAM, *bad])
+
+
+def test_the_start_line_says_where_the_model_computes():
+    assert node.where_it_computes("cpu", 4) == "model on the CPU with 4 threads"
+    assert node.where_it_computes("cuda:0", 4) == "model on cuda:0; scaling, decoding and drawing on the CPU"
+
+
+def test_cuda_without_the_gpu_runtime_names_the_one_step(tmp_path, monkeypatch):
+    from xblick.weights import Store
+
+    from xblick_yolox import gpu
+
+    monkeypatch.setattr(weights, "STORE", Store(weights.PROG, root=tmp_path, terms="", repo=tmp_path))
+    with pytest.raises(RuntimeError) as error:
+        gpu.onnxruntime_for("cuda:0")
+    message = str(error.value)
+    assert "tools/setup.sh --gpu" in message and str(tmp_path / "onnxruntime-gpu") in message
+    assert "\n" not in message and "CUDA 13" in message
 
 
 def test_a_missing_camera_option_ends_with_one_line(capsys):
@@ -85,7 +103,7 @@ sys.path.insert(0, {str(Path(__file__).parent)!r})
 from standin import StandIn
 from xblick_yolox import node, weights
 weights.needed = lambda model: []
-node.load_detector = lambda path, size, threads, device: StandIn(path, size, threads, device)
+node.load_detector = lambda path, threads, device: StandIn(path, threads, device)
 sys.exit(node.main(sys.argv[1:]))
 """
 

@@ -5,7 +5,8 @@ This page describes the model's input and output, the post-processing, the overl
 ## The model
 
 The node runs the ONNX files of YOLOX's release 0.1.1rc0 in ONNX Runtime. Each file has a fixed input size: 416 x 416
-for nano and tiny, 640 x 640 for s. The node checks the input and output shapes when it loads a file.
+for nano and tiny, 640 x 640 for s, m, l, x and darknet53. The node reads the size from the file and checks that
+the output has the rows of strides 8, 16 and 32 for it.
 
 The input `images` is a (1, 3, S, S) float32 array. The node scales the frame by one factor so that it fits into
 S x S, with Pillow's bilinear scaling. It puts the frame into the top-left corner and fills the rest with the grey

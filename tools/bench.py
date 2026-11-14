@@ -21,7 +21,9 @@ args = parser.parse_args()
 rgb = np.asarray(Image.open(Path(__file__).parents[1] / "tests" / "data" / "office.png").convert("RGB"))
 print(f"{rgb.shape[1]} x {rgb.shape[0]}, {args.threads} threads, {args.frames} frames after 20")
 for name in weights.MODELS:
-    detector = model.Detector(weights.path_of(name), model.INPUT_SIZE[name], args.threads)
+    if not weights.path_of(name).is_file():
+        continue  # not downloaded
+    detector = model.Detector(weights.path_of(name), args.threads)
     for _ in range(20):
         detector.detect(rgb, 0.3, 0.45)
     total, inner = [], []
@@ -36,5 +38,5 @@ for name in weights.MODELS:
         total.append((t3 - t2) * 1e3)
         inner.append((t2 - t1) * 1e3)
     q = lambda xs, p: float(np.percentile(xs, p))  # noqa: E731
-    print(f"{name:5s} {model.INPUT_SIZE[name]}: detect {statistics.median(total):6.1f} ms (p90 {q(total, 90):.1f}), "
+    print(f"{name:9s} {detector.size}: detect {statistics.median(total):6.1f} ms (p90 {q(total, 90):.1f}), "
           f"model alone {statistics.median(inner):6.1f} ms")

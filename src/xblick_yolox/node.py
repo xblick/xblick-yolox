@@ -1,7 +1,7 @@
 """xblick-yolox: YOLOX's objects of COCO's 80 classes (model.py) in a camera's colour stream, on the CPU.
 
-    xblick-yolox --camera cam/video0 [--model nano|tiny|s] [--score 0.3] [--nms 0.45] [--classes person,cup] \\
-                 [--overlay] [--threads 4] [--device cpu|cuda|cuda:N] [--max-hz HZ] \\
+    xblick-yolox --camera cam/video0 [--model tiny|nano|s|m|l|x|darknet53] [--score 0.3] [--nms 0.45] \\
+                 [--classes person,cup] [--overlay] [--threads 4] [--device cpu|cuda|cuda:N] [--max-hz HZ] \\
                  [--color <camera>/color] [--node yolox] [--no-download]
                  [--connect ...] [--listen ...] [--config FILE]   (default: the PC's Zenoh router)
 
@@ -40,7 +40,7 @@ from xblick.history import FrameHistory
 from xblick.session import add_arguments, open_from_args
 
 from . import weights
-from .model import COCO_CLASSES, INPUT_SIZE
+from .model import COCO_CLASSES
 
 COLOR_ENCODINGS = ("rgb8", "rgba8", "bgr8", "bgra8", "mono8")
 KEEP_FRAMES = 2  # frames kept until taken: the node always takes the newest
@@ -109,8 +109,9 @@ def make_parser() -> argparse.ArgumentParser:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--camera", required=True, help="the camera's base, e.g. cam/video0 or test/camera")
     parser.add_argument("--model", choices=tuple(weights.MODELS), default="tiny",
-                        help="the YOLOX model: nano (416 x 416 input), tiny (416 x 416) or s (640 x 640); "
-                             "downloaded at the first start (default: tiny)")
+                        help="the YOLOX model: the light nano and tiny (416 x 416 input), or the standard s, m, "
+                             "l, x and darknet53 (640 x 640), from small to large; downloaded at the first start "
+                             "(default: tiny)")
     parser.add_argument("--score", type=float, default=0.3,
                         help="the least score of an object, objectness times class score (default: 0.3)")
     parser.add_argument("--nms", type=float, default=0.45,
@@ -142,11 +143,18 @@ def draw(rgb: np.ndarray, found) -> np.ndarray:
                             [drawn.colour(int(label)) for label in found.labels])
 
 
-def load_detector(path, size: int, threads: int, device: str):
+def where_it_computes(device: str, threads: int) -> str:
+    """The start line's part on where the work runs: the model, and on a GPU what stays on the CPU."""
+    if device == "cpu":
+        return f"model on the CPU with {threads} threads"
+    return f"model on {device}; scaling, decoding and drawing on the CPU"
+
+
+def load_detector(path, threads: int, device: str):
     """The model (model.Detector); tests replace this function by a stand-in."""
     from .model import Detector  # noqa: PLC0415 - loads ONNX Runtime
 
-    return Detector(path, size, threads, device)
+    return Detector(path, threads, device)
 
 
 def main(argv=None) -> int:
@@ -186,7 +194,7 @@ def main(argv=None) -> int:
         session.close()
         return cache.fail(error)
     try:
-        detector = load_detector(weights.path_of(args.model, cache), INPUT_SIZE[args.model], args.threads, args.device)
+        detector = load_detector(weights.path_of(args.model, cache), args.threads, args.device)
     except RuntimeError as error:  # a --device that ONNX Runtime cannot use: one line, no CPU instead
         print(f"xblick-yolox: {error}", file=sys.stderr, flush=True)
         params.close()
@@ -207,8 +215,7 @@ def main(argv=None) -> int:
     report.watch(color)
     outputs = "detections_2d" + (",overlay" if overlay is not None else "")
     print(f"xblick-yolox: {color_base} -> {camera}/{args.node}/{{{outputs}}}: YOLOX-{args.model} "
-          f"({INPUT_SIZE[args.model]} x {INPUT_SIZE[args.model]}) on {args.device}, {args.threads} CPU threads",
-          flush=True)
+          f"({detector.size} x {detector.size}), {where_it_computes(args.device, args.threads)}", flush=True)
     counts = report.counts
     last = None  # the stamp of the last frame processed
     applied = (None, None)  # (classes as given, their indices)

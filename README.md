@@ -40,14 +40,14 @@ exists. Without `--overlay` the stream does not exist at all.
 | Durchblick | 0.5.3 or newer, below 0.6 (Python package `xblick`) |
 | Python | 3.10 to 3.13, which `tools/setup.sh` puts into `.venv` |
 | Tools for the setup | uv |
-| Disk | 4 MB (nano), 20 MB (tiny) or 36 MB (s) per model |
+| Disk | 4 MB (nano) to 396 MB (x) per model, see "Which model" |
 
 Model licences:
 
 | Part | Licence |
 | --- | --- |
 | YOLOX's code | Apache 2.0, as the repository's LICENSE states |
-| ONNX model files of YOLOX's release 0.1.1rc0 | The release states no terms of its own. The repository that publishes it is under Apache 2.0. The files are a download. |
+| ONNX model files of YOLOX's release 0.1.1rc0, all seven | The release states no terms of its own, for none of the files. The repository that publishes them is under Apache 2.0. All seven are files of that one release, so no model has other terms. The files are a download. |
 
 The node prints these terms before it downloads a model. This repository contains no copy of YOLOX's code or models.
 
@@ -100,12 +100,12 @@ Install it separately for `xblick cam`: `pip install "xblick[cam]"`.
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `--camera CAMERA` | required | the base name of the camera, such as `cam/video0` |
-| `--model NAME` | `tiny` | `nano` or `tiny` (input 416 x 416), or `s` (640 x 640) |
+| `--model NAME` | `tiny` | `nano`, `tiny` (input 416 x 416), `s`, `m`, `l`, `x` or `darknet53` (640 x 640), see "Which model" |
 | `--score S` | 0.3 | the least score of an object. Live. |
 | `--nms IOU` | 0.45 | a box goes when it overlaps a better box of its class by more than this intersection over union. Live. |
 | `--classes NAME ...` | all 80 | only these COCO classes, also comma-separated: `--classes person,cup`. Live. |
 | `--overlay` | off | also publish `<camera>/yolox/overlay` |
-| `--threads N` | 4 | the CPU threads of ONNX Runtime for one frame |
+| `--threads N` | 4 | the CPU threads of ONNX Runtime for one frame on the CPU |
 | `--device DEVICE` | `cpu` | `cpu`, `cuda` (GPU 0) or `cuda:N`. A GPU that ONNX Runtime cannot use ends the start with one line. |
 | `--max-hz HZ` | every frame | the most frames per second. The node always takes the newest frame. |
 | `--local` | `auto` | how frames of a camera on this host reach the node: `auto` or `shm` |
@@ -123,34 +123,55 @@ at the next start.
 
 ## On a GPU
 
-`uv.lock` installs ONNX Runtime for the CPU. For a GPU, replace it in `.venv` by `onnxruntime-gpu` with NVIDIA's CUDA
-13 and cuDNN 9 libraries from PyPI (2.5 GB):
+ONNX Runtime for a GPU is a package of its own, `onnxruntime-gpu`, which cannot sit in `.venv` beside the CPU
+package: both install the Python package `onnxruntime`, and `uv run` and `uv sync` bring the CPU package back. Install
+the GPU runtime once into the node's cache directory, outside `.venv`:
 
 ```bash
-uv pip uninstall --python .venv/bin/python onnxruntime
-uv pip install --python .venv/bin/python "onnxruntime-gpu[cuda,cudnn]==1.32.0"
-.venv/bin/xblick-yolox --camera test/camera --overlay --device cuda
+tools/setup.sh --gpu
+uv run xblick-yolox --camera test/camera --overlay --device cuda
 ```
 
-The node then runs YOLOX-tiny in 3.9 ms per frame on an RTX PRO 6000 (driver 580, CUDA 13.0). `tools/setup.sh`
-installs the CPU package again, because it restores `.venv` as `uv.lock` states. A GPU that ONNX Runtime cannot use
-ends the start with one line. The node never falls back to the CPU.
+`tools/setup.sh --gpu` installs `onnxruntime-gpu` 1.32.0 with NVIDIA's CUDA 13 and cuDNN 9 libraries from PyPI into
+`~/.cache/xblick/yolox/onnxruntime-gpu/` (2.4 GB). The libraries come as NVIDIA's wheels, so the PC needs no CUDA
+installation. It needs an NVIDIA driver for CUDA 13: version 580 or newer on Linux, and a GPU that CUDA 13 supports
+(Turing, RTX 20 series, or newer). `uv run`, `uv sync` and `tools/setup.sh` leave that directory as it is. Remove it
+to go back to the CPU only.
+
+With `--device cuda` the node loads ONNX Runtime from that directory, and every part of the model runs on the GPU. A
+model that the GPU cannot run whole is an error, never a silent switch to the CPU. Scaling the frame, decoding the
+boxes, the suppression and the overlay's drawing stay on the CPU. The start line says so:
+
+```
+xblick-yolox: test/camera/color -> test/camera/yolox/{detections_2d,overlay}: YOLOX-tiny (416 x 416), model on cuda:0; scaling, decoding and drawing on the CPU
+```
+
+Without the GPU runtime, `--device cuda` ends the start with one line that names `tools/setup.sh --gpu`. When CUDA
+cannot be loaded, for example with an older driver, the line gives ONNX Runtime's message and the libraries that failed
+to load. With `--device cuda:1` or another GPU than 0, ONNX Runtime 1.32 prints one warning, "No registered plugin EP
+device found for 'CUDAExecutionProvider' with device_id=1". It is harmless: ONNX Runtime then uses its CUDA provider
+as usual.
 
 ## Which model
 
-The table gives the milliseconds per 640 x 480 frame for the whole detection: scaling, model, decoding and
-suppression. We measured on 4 threads of an AMD EPYC 9335, the process limited to 4 cores, as the median of 200
-frames (2026-11-14).
+All seven models of YOLOX's release are offered. Input, parameters, FLOPs and mAP are YOLOX's own figures from
+[its benchmark tables](https://github.com/Megvii-BaseDetection/YOLOX#benchmark) (mAP on COCO val2017). The file size
+is that of the ONNX file. The milliseconds are ours: the whole detection of a 640 x 480 frame on 4 threads of an AMD
+EPYC 9335, the process limited to 4 cores, median of 200 frames (2026-11-14). We measured only nano, tiny and s.
 
-| Model | Input | ms per frame | Objects found in `tests/data/office.png` |
-| --- | --- | --- | --- |
-| nano | 416 x 416 | 6.6 | two chairs, six bottles, a table |
-| tiny | 416 x 416 | 10.9 | two chairs, seven bottles |
-| s | 640 x 640 | 30.7 | two chairs, bottles and a cup, with higher scores |
+| Model | Input | Parameters | FLOPs | mAP | ONNX file | ms per frame (ours, CPU) |
+| --- | --- | --- | --- | --- | --- | --- |
+| nano | 416 x 416 | 0.91 M | 1.08 G | 25.8 | 3.7 MB | 6.6 |
+| tiny | 416 x 416 | 5.06 M | 6.45 G | 32.8 | 20.2 MB | 10.9 |
+| s | 640 x 640 | 9.0 M | 26.8 G | 40.5 | 35.9 MB | 30.7 |
+| m | 640 x 640 | 25.3 M | 73.8 G | 46.9 | 101.3 MB | not measured |
+| l | 640 x 640 | 54.2 M | 155.6 G | 49.7 | 216.7 MB | not measured |
+| x | 640 x 640 | 99.1 M | 281.9 G | 51.1 | 396.1 MB | not measured |
+| darknet53 | 640 x 640 | 63.7 M | 185.3 G | 47.7 | 254.8 MB | not measured |
 
-Take `nano` on a slow notebook. Take `s` when objects are small and the CPU has time. Megvii's README gives the
-accuracy on COCO as mAP 25.8, 32.8 and 40.5. [Speed](docs/performance.md) has the setup and the node's rate end to
-end.
+On a notebook's CPU, nano and tiny are realistic for a live camera by our numbers. s took 31 ms per frame on 4
+server cores. m, l, x and darknet53 need 3 to 11 times the FLOPs of s, so they are for a GPU. `darknet53` is
+YOLOX-Darknet53, YOLOv3's backbone with YOLOX's head. Its release file is `yolox_darknet.onnx`.
 
 ## Limits
 
