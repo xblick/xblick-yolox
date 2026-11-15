@@ -32,7 +32,7 @@ import time
 
 import numpy as np
 import xblick as db
-from xblick import node, topics
+from xblick import mps, node, topics
 from xblick import overlay as drawn
 from xblick import weights as store
 from xblick.camera import check_local
@@ -194,6 +194,8 @@ def main(argv=None) -> int:
         params.close()
         session.close()
         return cache.fail(error)
+    if args.device != "cpu":
+        mps.check()  # on a GPU with CUDA_MPS_PIPE_DIRECTORY (MPS meant) its daemon has to run: else stop here
     try:
         detector = load_detector(weights.path_of(args.model, cache), args.threads, args.device)
     except RuntimeError as error:  # a --device that ONNX Runtime cannot use: one line, no CPU instead

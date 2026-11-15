@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.5 (2026-11-15)
+
+The MPS check of the other nodes, and how to cite YOLOX.
+
+### Changed
+
+- README: how to cite YOLOX.
+
+### Fixed
+
+- With `--device cuda` and `CUDA_MPS_PIPE_DIRECTORY` set, the node stops at the start when no MPS daemon runs.
+
+Compatible with earlier clients: nothing on the wire changed.
+
 ## 0.1.4 (2026-11-15)
 
 - The GPU runtime for `--device cuda` is shared by the ONNX Runtime nodes: `onnxruntime-gpu` 1.32.0 with NVIDIA's

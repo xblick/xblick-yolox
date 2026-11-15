@@ -213,3 +213,17 @@ License 2.0. "Requirements" lists what its release states about the models.
 
 The code of this repository is under the Apache License 2.0, see [LICENSE](LICENSE). [NOTICE](NOTICE) names the
 copyright holder and the parts of others, among them the test image of the TUM RGB-D dataset (CC BY 4.0).
+
+## Citation
+
+This node uses YOLOX (Megvii-BaseDetection/YOLOX). If you use it in research, cite their work. The entries below are
+copied from [its README](https://github.com/Megvii-BaseDetection/YOLOX/blob/0.1.1rc0/README.md):
+
+```bibtex
+ @article{yolox2021,
+  title={YOLOX: Exceeding YOLO Series in 2021},
+  author={Ge, Zheng and Liu, Songtao and Wang, Feng and Li, Zeming and Sun, Jian},
+  journal={arXiv preprint arXiv:2107.08430},
+  year={2021}
+}
+```
