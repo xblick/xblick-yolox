@@ -190,6 +190,32 @@ On a notebook's CPU, nano and tiny are realistic for a live camera by our number
 server cores. m, l, x and darknet53 need 3 to 11 times the FLOPs of s, so they are for a GPU. `darknet53` is
 YOLOX-Darknet53, YOLOv3's backbone with YOLOX's head. Its release file is `yolox_darknet.onnx`.
 
+## ROS 2
+
+The branch `ros2` of this repository takes the core from its branch `ros2`, which is not released. `uv sync` then
+builds the core's C++ part from source, which needs a C++ compiler. The core adds the option `--ros`: the node then
+also takes part in ROS 2 on `rmw_zenoh`, and its own topics stay as they are. Without `--ros` nothing changes.
+
+```bash
+.venv/bin/xblick-yolox --camera test/camera --overlay --ros
+```
+
+| ROS 2 topic | ROS type |
+| --- | --- |
+| `/<camera>/yolox/detections_2d` | `vision_msgs/msg/Detection2DArray` |
+| `/<camera>/yolox/overlay/image_raw`, `.../camera_info`, `.../image_raw/compressed` | `sensor_msgs/msg/Image`, `CameraInfo`, `CompressedImage` |
+| `/<camera>/diagnostics` | `diagnostic_msgs/msg/DiagnosticArray` |
+
+The node sends a topic to ROS only while a ROS subscriber reads it. The program is the ROS node `/xblick_yolox`
+(`--ros-node`), and its parameters are the ROS node `/<camera>/yolox`. ROS clients read the parameters and may set
+them only when the node was started with `--ros-params-writable`. ROS does not get the overlay's shared memory ring.
+
+Each part of `--camera` and `--node` has to be a ROS name: letters, digits and `_`, not starting with a digit.
+Otherwise `--ros` stops the node at its start with one line. We tested that an `rclcpp` node of ROS 2 Jazzy receives
+the overlay and the diagnostics. ROS 2's own reception of the detections is untested, because that installation had
+no `vision_msgs`. [Durchblick and ROS 2](https://github.com/xblick/xblick/blob/ros2/docs/integrations/ros2.md)
+describes the option, the other `--ros-*` options and ROS 2's tools.
+
 ## Limits
 
 - We tested the node on a test camera and on a replayed image, as separate processes. We have not tested it with a

@@ -1,5 +1,23 @@
 # Changelog
 
+## Branch ros2 (not released)
+
+The node with the core's option `--ros` (ROS 2 on `rmw_zenoh`).
+
+### Changed
+
+- The core comes from its unreleased branch `ros2` (`xblick @ git+https://github.com/xblick/xblick@ros2`), not from
+  PyPI. `uv sync` builds its C++ part from source.
+
+### Added
+
+- `--ros`, `--ros-domain`, `--ros-node` and `--ros-params-writable` from the core. With `--ros` the detections, the
+  overlay and the diagnostics also go to ROS 2, and the parameters are a ROS node. README: section "ROS 2".
+- `tests/test_ros.py`: with `--ros` a ROS subscriber gets the detections and the overlay, with ROS's attachment and
+  tokens; without it nothing of ROS is on the wire.
+
+Compatible with earlier clients: nothing on our keys changed.
+
 ## 0.1.5 (2026-11-15)
 
 The MPS check of the other nodes, and how to cite YOLOX.

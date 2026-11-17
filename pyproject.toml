@@ -8,7 +8,8 @@ license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "David Schneider" }]
 requires-python = ">=3.10,<3.14"  # the core's wheels: CPython 3.10 to 3.13
 dependencies = [
-    "xblick>=0.5.5,<0.6",  # the Durchblick core: node, history, parameters, vision_msgs/Detection2DArray
+    # branch ros2 only: the core from its unreleased branch ros2 (--ros); main pins the release
+    "xblick @ git+https://github.com/xblick/xblick@ros2",  # the Durchblick core: node, history, parameters, vision_msgs
     "onnxruntime>=1.20,<1.24; python_version < '3.11'",  # the model, on the CPU; 1.24 has no wheels for 3.10
     "onnxruntime>=1.20; python_version >= '3.11'",
     "numpy>=1.26",

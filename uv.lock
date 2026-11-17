@@ -691,8 +691,8 @@ wheels = [
 
 [[package]]
 name = "xblick"
-version = "0.5.5"
-source = { registry = "https://pypi.org/simple" }
+version = "0.5.14"
+source = { git = "https://github.com/xblick/xblick?rev=ros2#c4edde4d68a31c368cb74bc5844bcd733b0f304d" }
 dependencies = [
     { name = "eclipse-zenoh" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -700,14 +700,8 @@ dependencies = [
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pillow", version = "12.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pillow", version = "13.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "rich" },
     { name = "textual" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/72/1c/618a48d5df87dc6878f11abb5024dd853ac039a5b5a27f2a8ae1c4fc0171/xblick-0.5.5.tar.gz", hash = "sha256:8134dd6a4989f98e106c42b47f5bb04a976aae1eb25358617acd016095ea0ba0", size = 704232, upload-time = "2026-11-14T17:17:22.88Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/12/bd/9908c39959a15849d3605f902a9bf920420c55a0b9a5195639bda6d7e286/xblick-0.5.5-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:21f80d081155ac33b092b49b20f77ebb93bf20042c86275936668b2d433adb1c", size = 472666, upload-time = "2026-11-14T17:17:16.211Z" },
-    { url = "https://files.pythonhosted.org/packages/f1/07/b44b61d0bc93abb988aec2404c0e9457ddf2ad659f6153ac914b36470267/xblick-0.5.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:bcfe461b1ca7cd79d9027fc168c3c8a4730d2d4615b42561bea5d208029159f8", size = 472386, upload-time = "2026-11-14T17:17:17.936Z" },
-    { url = "https://files.pythonhosted.org/packages/0f/12/1c409d675f1f8dbea7d7d7a0cefe754b04498785b75206bc42533dfeae04/xblick-0.5.5-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c0e841160e0ac6c077b5d2e98c3867b628996da9da5f6f6b0111c7b46c744426", size = 472033, upload-time = "2026-11-14T17:17:19.666Z" },
-    { url = "https://files.pythonhosted.org/packages/17/3e/42a708c3af765528125031fafd8dc1c2c6f9e7822559c85caac5e6d9f1c8/xblick-0.5.5-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:57f8a2f5145dcc42f565a330b7d47481e7d5300bc5b2727cc79db24b31b246eb", size = 471969, upload-time = "2026-11-14T17:17:21.278Z" },
 ]
 
 [[package]]
@@ -737,7 +731,7 @@ requires-dist = [
     { name = "onnxruntime", marker = "python_full_version < '3.11'", specifier = ">=1.20,<1.24" },
     { name = "onnxruntime", marker = "python_full_version >= '3.11'", specifier = ">=1.20" },
     { name = "pillow", specifier = ">=10.1" },
-    { name = "xblick", specifier = ">=0.5.5,<0.6" },
+    { name = "xblick", git = "https://github.com/xblick/xblick?rev=ros2" },
 ]
 
 [package.metadata.requires-dev]

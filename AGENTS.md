@@ -36,7 +36,8 @@ taskset -c 0-3 .venv/bin/python tools/bench.py       # ms per frame of each mode
 - Weights: `weights.py` is the one list (`MODELS`: URL, size, SHA-256 measured from the downloaded files) and
   `STORE` (`xblick.weights.Store`, root `~/.cache/xblick/yolox`, the node's cache directory; `FORMER`: the checkout's `weights/`). The download itself is the core's.
 - `model.py` follows YOLOX's ONNX format; keep `tests/test_model.py` green after any change of letterbox or decode.
-- Durchblick pin: `xblick>=0.5.5,<0.6`. Dependencies from PyPI only.
+- Durchblick pin: `xblick>=0.5.5,<0.6`. Dependencies from PyPI only. Branch `ros2`: the core from its git branch `ros2`
+  (`--ros`), until a release has it.
 - 120 columns. Docstrings say what, comments say why. Update `README.md` and `docs/` with every change of behaviour.
 
 ## Traps
