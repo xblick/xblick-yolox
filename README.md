@@ -38,8 +38,8 @@ exists. Without `--overlay` the stream does not exist at all.
 | CPU | an x86-64 PC with Linux. We measured on 4 cores of an AMD EPYC 9335. |
 | GPU | none. An NVIDIA GPU is optional, see "On a GPU". |
 | Durchblick | 0.5.3 or newer, below 0.6 (Python package `xblick`) |
-| Python | 3.10 to 3.13, which `tools/setup.sh` puts into `.venv` |
-| Tools for the setup | uv |
+| Python | 3.10 to 3.13, which uv installs with the node |
+| Tools for the install | uv and git |
 | Disk | 4 MB (nano) to 396 MB (x) per model, see "Which model" |
 
 Model licences:
@@ -53,6 +53,29 @@ The node prints these terms before it downloads a model. This repository contain
 
 ## Install
 
+Install the node with uv, or clone this repository for development.
+
+### With uv
+
+```bash
+uv tool install git+https://github.com/xblick/xblick-yolox
+xblick-yolox --download-only
+```
+
+uv puts `xblick-yolox` on PATH, in an environment of its own, with ONNX Runtime for the CPU and a Python 3.10 to
+3.13 that uv finds or downloads. It resolves the dependencies afresh within the bounds of `pyproject.toml`: `uv.lock`
+applies only to a clone. `xblick-yolox --download-only` downloads YOLOX-tiny into `~/.cache/xblick/yolox/` and checks
+its size and SHA-256. `--model s` downloads another model. For `--device cuda`, add the GPU runtime as
+[On a GPU](#on-a-gpu) shows.
+
+`uv tool upgrade xblick-yolox` updates the node to the newest commit of this repository and the dependencies within
+their bounds. `uv tool uninstall xblick-yolox` removes the node. The models and the GPU runtime stay in the cache
+directory. The `xblick` command under [Run](#run) is the core's: `uv tool install xblick` puts it on PATH.
+
+### From a clone
+
+For development, and for the versions that `uv.lock` fixes:
+
 ```bash
 tools/setup.sh
 ```
@@ -64,6 +87,8 @@ The script creates `.venv` exactly as `uv.lock` states, with ONNX Runtime for th
 it runs `xblick-yolox --download-only`, which downloads YOLOX-tiny into `~/.cache/xblick/yolox/` and checks its size and SHA-256.
 `tools/setup.sh --model s` downloads another model. The script downloads only what is missing.
 
+### Downloads at the start
+
 The node also downloads a missing model at its start. A machine that must never start a download on its own starts
 the node with `--no-download`. The node then ends at once when the file is missing, and it names the file.
 
@@ -72,8 +97,8 @@ The node is not on PyPI yet. We plan to publish it there, so that `pip install x
 ### Where the weights are
 
 The node keeps its weights in its cache directory, `~/.cache/xblick/yolox/`. `XBLICK_HOME=/dir` moves it to `/dir/cache/yolox/`,
-and `XDG_CACHE_HOME` moves it as well. `--weights-dir DIR` names another directory. The place is the same for a
-checkout and for a pip install. [Where files are](https://github.com/xblick/xblick/blob/main/docs/reference/files.md) lists the places, and it shows how to copy the cache to a
+and `XDG_CACHE_HOME` moves it as well. `--weights-dir DIR` names another directory. The place is the same for an
+install with uv and for a clone. [Where files are](https://github.com/xblick/xblick/blob/main/docs/reference/files.md) lists the places, and it shows how to copy the cache to a
 PC without internet.
 
 Up to version 0.1.1, the weights were in the checkout's `weights/`. The node does not read them there. At its start it
@@ -85,20 +110,21 @@ mkdir -p ~/.cache/xblick && mv weights ~/.cache/xblick/yolox
 
 ## Run
 
-Start a router, a camera, the node and a viewer, each in its own terminal. The camera name is an example.
+Start a router, a camera, the node and a viewer, each in its own terminal. The camera name is an example. In a clone
+the commands are in `.venv/bin/`.
 
 ```bash
-.venv/bin/xblick router                                  # the Zenoh router of this PC
-.venv/bin/xblick test-camera                             # a test pattern on test/camera/color
-.venv/bin/xblick-yolox --camera test/camera --overlay
+xblick router                                  # the Zenoh router of this PC
+xblick test-camera                             # a test pattern on test/camera/color
+xblick-yolox --camera test/camera --overlay
 # on a PC with an NVIDIA GPU: add --device cuda (see "On a GPU")
-.venv/bin/xblick view test/camera/color test/camera/yolox/overlay
+xblick view test/camera/color test/camera/yolox/overlay
 ```
 
 `xblick view` opens VLC, or offers the browser view at `http://127.0.0.1:8090/`. The test pattern has no objects
 in it. A webcam has: `xblick cam /dev/video0` publishes `cam/video0/color`, and `--camera cam/video0` takes it.
-`xblick cam` needs the core's `cam` extra, which `.venv` does not have and `tools/setup.sh` does not install.
-Install it separately for `xblick cam`: `pip install "xblick[cam]"`.
+`xblick cam` needs the core's `cam` extra, which neither install of the node brings. `uv tool install "xblick[cam]"`
+installs the core's command with it.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
@@ -147,12 +173,19 @@ another node that installed it already, reuses it. `uv run`, `uv sync` and `tool
 | `--gpu` | installs the runtime whatever the check says (an image built on a PC without a GPU) |
 | `--no-gpu` | never installs it |
 
+After an install with uv, this command installs the runtime by the same rule. `--mode on` stands for `--gpu`,
+`--mode off` for `--no-gpu`:
+
+```bash
+"$(uv tool dir)/xblick-yolox/bin/python" -m xblick_yolox.runtime setup --uv "$(command -v uv)" --prog xblick-yolox
+```
+
 Requirements of the GPU runtime: an NVIDIA driver 580 or newer (CUDA 13), a GPU that CUDA 13 supports (Turing, RTX
 20 series, or newer), Python 3.11 or newer (onnxruntime-gpu 1.32.0 has no wheel for 3.10). NVIDIA's libraries come as
 wheels, so the PC needs no CUDA installation.
 
 ```bash
-uv run xblick-yolox --camera test/camera --overlay --device cuda
+xblick-yolox --camera test/camera --overlay --device cuda
 ```
 
 With `--device cuda` the node loads ONNX Runtime from the shared directory, and every part of the model runs on the
