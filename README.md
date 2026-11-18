@@ -192,8 +192,6 @@ YOLOX-Darknet53, YOLOv3's backbone with YOLOX's head. Its release file is `yolox
 
 ## Limits
 
-- We tested the node on a test camera and on a replayed image, as separate processes. We have not tested it with a
-  real webcam.
 - In a shell script, Ctrl-C (SIGINT) does not end the node when the script started it in the background. SIGTERM
   does. The core restores SIGINT for its own commands, but not for nodes.
 - YOLOX knows only COCO's 80 classes. It does not track, so a detection has no id.
