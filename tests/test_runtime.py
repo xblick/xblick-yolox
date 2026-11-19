@@ -49,7 +49,8 @@ def test_cuda_without_the_runtime_names_the_one_step(home):
         runtime.onnxruntime_for("cuda:0", "xblick-x")
     message = str(error.value)
     assert message.startswith("--device cuda:0: no GPU runtime in " + str(runtime.runtime_dir()))
-    assert "tools/setup.sh --gpu" in message and "CUDA 13" in message and "\n" not in message
+    assert "xblick-x-gpu-runtime install" in message and "tools/setup.sh --gpu" in message
+    assert "CUDA 13" in message and "\n" not in message
 
 
 def test_a_runtime_at_a_former_place_gives_the_exact_mv(home, tmp_path):
@@ -177,6 +178,27 @@ def test_an_interrupted_install_never_looks_complete(home, uv, capsys):
     other = runtime.runtime_dir()
     os.rename(other, other.with_name("done"))  # as if missing again
     assert runtime.install(str(failing), "xblick-x") == 1 and not other.exists()
+
+
+def test_the_command_after_uv_tool_install_installs_and_names_the_place(home, uv, monkeypatch, capsys):
+    path, log = uv
+    prog = PACKAGE.replace("_", "-")
+    assert runtime.tool_main(["where"]) == 0 and capsys.readouterr().out.strip() == str(runtime.runtime_dir())
+    monkeypatch.setenv("PATH", str(path.parent))  # the stand-in uv, as "uv" on PATH
+    os.rename(path, path.parent / "uv-stand-in")
+    stand_in(path.parent, "uv", f'exec "{path.parent / "uv-stand-in"}" "$@"\n')
+    assert runtime.tool_main(["install"]) == 0
+    assert "GPU runtime in place" in capsys.readouterr().out and len(log.read_text().splitlines()) == 2
+    assert runtime.tool_main(["install"]) == 0 and "in place already" in capsys.readouterr().out
+    assert runtime.tool_main(["install", "--uv", "no-such-uv"]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith(f"{prog}-gpu-runtime: no uv (no-such-uv)") and "astral.sh/uv/install.sh" in err
+
+
+def test_the_command_is_a_console_script_of_the_node():
+    pyproject = (Path(__file__).parents[1] / "pyproject.toml").read_text()
+    prog = PACKAGE.replace("_", "-")
+    assert f'{prog}-gpu-runtime = "{PACKAGE}.runtime:tool_main"' in pyproject
 
 
 PREPARING = f"""

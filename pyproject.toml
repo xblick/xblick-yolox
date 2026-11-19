@@ -1,6 +1,6 @@
 [project]
 name = "xblick-yolox"
-version = "0.1.5"
+version = "0.1.6"
 description = "YOLOX (Megvii's object detector, COCO's 80 classes) as a Durchblick node, on the CPU with ONNX Runtime"
 readme = "README.md"
 license = "Apache-2.0"
@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 xblick-yolox = "xblick_yolox.node:main"
+xblick-yolox-gpu-runtime = "xblick_yolox.runtime:tool_main"  # the GPU runtime after uv tool install
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.6"]

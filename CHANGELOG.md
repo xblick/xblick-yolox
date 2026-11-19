@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.1.6 (2026-11-19)
+
+An installation that a beginner can follow from the README alone.
+
+### Added
+
+- `xblick-yolox-gpu-runtime install`: the GPU runtime for `--device cuda` after `uv tool install`, which has no
+  `tools/setup.sh`. `xblick-yolox-gpu-runtime where` prints its directory.
+
+### Changed
+
+- The README's installation is a numbered path: the prerequisites with their install commands, the node with
+  `uv tool install`, the core's command with one line for every node
+  (`uv tool install "xblick[rerun,video,cam]>=0.5,<0.6"`), and a first start. The clone with `tools/setup.sh` stays
+  the second way.
+- `tools/setup.sh --help` describes the script and its options and ends. Before, it ran the setup.
+- `tools/setup.sh` checks its prerequisites first. Without git or uv it stops and prints the command that installs
+  them. On a PC other than Linux on x86-64, for which the core has no wheels, it stops at once.
+- Before its downloads, `tools/setup.sh` lists what it downloads, with the sizes and the licences.
+
+### Fixed
+
+- Without the GPU runtime, `--device cuda` named only `tools/setup.sh --gpu`, which an install with uv does not have.
+  It now names `xblick-yolox-gpu-runtime install`, and `tools/setup.sh --gpu` for a clone.
 ## 0.1.5 (2026-11-15)
 
 The MPS check of the other nodes, and how to cite YOLOX.

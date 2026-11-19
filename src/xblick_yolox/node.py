@@ -124,8 +124,9 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("--threads", type=int, default=4,
                         help="CPU threads for the model (ONNX Runtime's intra-op threads) (default: 4)")
     parser.add_argument("--device", type=parse_device, default="cpu",
-                        help="cpu, or cuda (GPU 0) or cuda:N with the shared GPU runtime (tools/setup.sh); a GPU "
-                             "that cannot be used is an error (default: cpu)")
+                        help="cpu, or cuda (GPU 0) or cuda:N with the shared GPU runtime "
+                             "(xblick-yolox-gpu-runtime install, in a clone tools/setup.sh); a GPU that cannot be "
+                             "used is an error (default: cpu)")
     parser.add_argument("--color", default=None, help="the colour stream (default <camera>/color)")
     parser.add_argument("--node", default="yolox", help="the results' part of the topic: <camera>/<node>/...")
     store.add_arguments(parser)  # --download-only (a mode of the command line), --no-download

@@ -4,8 +4,10 @@ ONNX Runtime node shares.
 
 The venv holds ONNX Runtime for the CPU (``onnxruntime``, as ``uv.lock`` states). The GPU package cannot sit beside it:
 both install the Python package ``onnxruntime``, and ``uv run`` or ``uv sync`` brings the CPU package back over a
-swapped one. ``tools/setup.sh`` (``python -m <package>.gpu setup``) therefore installs the GPU runtime once into
-``runtime_dir()``, by ``detect``'s rule when an NVIDIA GPU is present, with ``--gpu`` always, with ``--no-gpu`` never:
+swapped one. ``tools/setup.sh`` (``python -m <package>.runtime setup``) therefore installs the GPU runtime once into
+``runtime_dir()``, by ``detect``'s rule when an NVIDIA GPU is present, with ``--gpu`` always, with ``--no-gpu`` never.
+After ``uv tool install``, which has no tools/setup.sh, the node's command ``<node>-gpu-runtime install``
+(``tool_main``) installs it:
 
     ~/.cache/xblick/onnxruntime/gpu-<onnxruntime-gpu version>-cp<Python version>/
 
@@ -29,6 +31,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import fcntl
+import importlib
 import io
 import os
 import shutil
@@ -45,7 +48,12 @@ ONNXRUNTIME_GPU = "1.32.0"  # the version the install puts there, and the one th
 CUDA_LIBRARIES = ("nvidia-cuda-nvrtc~=13.0", "nvidia-cuda-runtime~=13.0", "nvidia-cufft~=12.0", "nvidia-curand~=10.0",
                   "nvidia-cudnn-cu13~=9.0")
 PYTHONS = ((3, 11), (3, 14))  # the Pythons onnxruntime-gpu 1.32.0 has wheels for, first and last
-SETUP = "tools/setup.sh --gpu"  # the one step, in a node's checkout
+SETUP = "tools/setup.sh --gpu"  # the step in a node's clone
+
+
+def step(prog: str) -> str:
+    """The step that installs the GPU runtime, for an install with uv and for a clone."""
+    return f"{prog}-gpu-runtime install (in a clone: {SETUP})"
 LOCK = ".install.lock"  # in cache_dir("onnxruntime"): one install at a time
 
 
@@ -54,12 +62,13 @@ def runtime_dir() -> Path:
     return paths.cache_dir("onnxruntime") / f"gpu-{ONNXRUNTIME_GPU}-cp{sys.version_info[0]}{sys.version_info[1]}"
 
 
-def check_python(what: str):
+def check_python(what: str, prog: str):
     """RuntimeError when onnxruntime-gpu has no wheel for this Python."""
     if not PYTHONS[0] <= sys.version_info[:2] <= PYTHONS[1]:
         raise RuntimeError(f"{what}: onnxruntime-gpu {ONNXRUNTIME_GPU} has no wheel for Python "
-                           f"{sys.version_info[0]}.{sys.version_info[1]}; make the venv with Python 3.11 to 3.14 "
-                           "(uv sync --python 3.12), then run " + SETUP)
+                           f"{sys.version_info[0]}.{sys.version_info[1]}; install the node with Python 3.11 to 3.14 "
+                           f"(uv tool install --python 3.12 ..., in a clone uv sync --python 3.12), then run "
+                           f"{step(prog)}")
 
 
 def former_runtime(former) -> Path | None:
@@ -89,13 +98,13 @@ def onnxruntime_for(device: str, prog: str, former=()):
 
         return onnxruntime
     what = f"--device {device}"
-    check_python(what)
+    check_python(what, prog)
     where = runtime_dir()
     if not (where / "onnxruntime").is_dir():
         old = former_runtime(former)
         if old is not None:
             raise RuntimeError(f"{what}: {move_line(old)}")
-        raise RuntimeError(f"{what}: no GPU runtime in {where}; install it once with {SETUP} (onnxruntime-gpu "
+        raise RuntimeError(f"{what}: no GPU runtime in {where}; install it once with {step(prog)} (onnxruntime-gpu "
                            f"{ONNXRUNTIME_GPU} with CUDA 13 and cuDNN 9, 2.4 GB, shared by the ONNX Runtime nodes; "
                            "needs an NVIDIA driver for CUDA 13)")
     loaded = sys.modules.get("onnxruntime")
@@ -108,10 +117,10 @@ def onnxruntime_for(device: str, prog: str, former=()):
 
     if onnxruntime.__version__ != ONNXRUNTIME_GPU or not str(onnxruntime.__file__).startswith(str(where)):
         raise RuntimeError(f"{what}: {where} holds onnxruntime {onnxruntime.__version__} ({onnxruntime.__file__}), "
-                           f"{prog} needs onnxruntime-gpu {ONNXRUNTIME_GPU}: remove it and run {SETUP}")
+                           f"{prog} needs onnxruntime-gpu {ONNXRUNTIME_GPU}: remove it and run {step(prog)}")
     if "CUDAExecutionProvider" not in onnxruntime.get_available_providers():
         raise RuntimeError(f"{what}: the GPU runtime's onnxruntime has no CUDA provider (it has "
-                           f"{', '.join(onnxruntime.get_available_providers())}); remove {where} and run {SETUP}")
+                           f"{', '.join(onnxruntime.get_available_providers())}); remove {where} and run {step(prog)}")
     return onnxruntime
 
 
@@ -214,13 +223,14 @@ def prepare(make, device: str, prog: str):
 
 
 def install(uv: str, prog: str, former=(), out=None) -> int:
-    """``tools/setup.sh --gpu``: the GPU runtime into ``runtime_dir()`` unless it is there; under a lock, so two
+    """``tools/setup.sh --gpu``, ``<node>-gpu-runtime install``: the GPU runtime into ``runtime_dir()`` unless it is
+    there; under a lock, so two
     installs at once install once. A runtime at a former place: one line with the ``mv`` instead (exit 1). The install
     goes to ``<dir>.part``, renamed when complete; a ``.part`` left by an interrupted install is removed first.
     Returns the exit code."""
     out = out or sys.stdout
     try:
-        check_python(f"{prog} --gpu")
+        check_python("the GPU runtime", prog)
     except RuntimeError as error:
         print(f"{prog}: {error}", file=sys.stderr, flush=True)
         return 1
@@ -237,7 +247,7 @@ def install(uv: str, prog: str, former=(), out=None) -> int:
                   "the other ONNX Runtime nodes), nothing to install", file=out, flush=True)
             return 0
         if where.exists():
-            print(f"{prog}: {where} exists but is incomplete: remove it, then run {SETUP} again", file=sys.stderr,
+            print(f"{prog}: {where} exists but is incomplete: remove it, then run {step(prog)} again", file=sys.stderr,
                   flush=True)
             return 1
         old = former_runtime(former)
@@ -256,7 +266,7 @@ def install(uv: str, prog: str, former=(), out=None) -> int:
             done = subprocess.run([uv, "pip", "install", *target, *packages], check=False)
             if done.returncode != 0:
                 print(f"{prog}: the install failed ({uv} pip install, exit {done.returncode}); {part} is incomplete "
-                      f"and is removed at the next {SETUP}", file=sys.stderr, flush=True)
+                      f"and is removed at the next {step(prog)}", file=sys.stderr, flush=True)
                 return 1
         os.rename(part, where)
         print(f"{prog}: GPU runtime in place; start the node with --device cuda", file=out, flush=True)
@@ -316,7 +326,7 @@ def setup(uv: str, prog: str, mode: str, former=(), out=None) -> int:
         print(f"{prog}: {found}, so it was not installed; the node computes on the CPU", file=out, flush=True)
         return 0
     try:
-        check_python(f"{found}, but the GPU runtime")
+        check_python(f"{found}, but the GPU runtime", prog)
     except RuntimeError as error:
         print(f"{prog}: {error}; the node computes on the CPU until then", file=out, flush=True)
         return 0
@@ -343,6 +353,33 @@ def main(argv=None) -> int:
     if args.command == "install":
         return install(args.uv, args.prog, args.former)
     return setup(args.uv, args.prog, args.mode, args.former)
+
+
+def tool_main(argv=None) -> int:
+    """``<node>-gpu-runtime install|where`` (the node's console script, for an install with uv, which has no
+    tools/setup.sh): ``install`` puts the GPU runtime into ``runtime_dir()`` with uv (``--uv``, default uv on PATH),
+    whatever nvidia-smi says; ``where`` prints that directory. The node is this file's package."""
+    prog = __package__.replace("_", "-")
+    parser = argparse.ArgumentParser(prog=f"{prog}-gpu-runtime",
+                                     description=f"the GPU runtime for {prog} --device cuda: onnxruntime-gpu "
+                                                 f"{ONNXRUNTIME_GPU} with NVIDIA's CUDA 13 and cuDNN 9 libraries "
+                                                 "(2.4 GB, needs an NVIDIA driver 580 or newer), in one directory "
+                                                 "that the ONNX Runtime nodes share")
+    parser.add_argument("command", choices=("install", "where"),
+                        help="install: download and install it (once; a second call reuses it); where: print its "
+                             "directory")
+    parser.add_argument("--uv", default="uv", help="the uv that installs it (default: uv on PATH)")
+    args = parser.parse_args(argv)
+    if args.command == "where":
+        print(runtime_dir())
+        return 0
+    uv = shutil.which(args.uv)
+    if uv is None:
+        print(f"{prog}-gpu-runtime: no uv ({args.uv}): install it with  wget -qO- https://astral.sh/uv/install.sh | sh",
+              file=sys.stderr, flush=True)
+        return 1
+    weights = importlib.import_module(f"{__package__}.weights")
+    return install(uv, prog, getattr(weights, "FORMER_GPU_RUNTIME", ()))
 
 
 if __name__ == "__main__":
